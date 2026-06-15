@@ -1,0 +1,4 @@
+-1 per step
+-2 for hitting a wall
++10 for a token
+-100 for getting caught

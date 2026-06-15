@@ -1,6 +1,7 @@
+# --- SET-UP EXPLANATION ---
 # 1 epoch 10 trials.
-# how do we measure time? 
-# Let's say 1 second is 10 moves!
+# how do we measure time? --Implementing seconds
+# I define a trial to be 20 seconds
 
 # -- Phase 1: Foraging phase --
 # Uniform distribution of 3-15 seconds
@@ -9,39 +10,72 @@
 # If less than 15, we move onto the second phase
 
 # -- Phase 2: Chase phase --
-# Let's say this epoch is 0.2 probability epoch. 
+# Let's say this epoch is a 0.2 probability epoch. 
 # Then 2 times out of these 10 trials, a threat will appear.
+
+# --- TO DOs ---
+# 1. Integrate grid.spawn_tokens()
 
 from libraries import *
 
+def wait_and_act(env, duration, is_chase_phase=False, print_timer=False):
+    start_time = time.time()
+
+    while time.time() < start_time + duration:
+        #PLACEHOLDER
+        #For now, the agent chooses a random action (0=Up, 1=Right, 2=Down, 3=Left)
+        #But later, SARSA or Q-learning algorithm will decide this
+        action = random.randint(0, 3)
+
+        status, reward = env.step(action, is_chase_phase)
+
+        if status == "CAUGHT":
+            print("THE AGENT IS CAUGHT BY THE THREAT")
+            return "CAUGHT"
+
+        if print_timer:
+            elapsed = int(time.time()-start_time) #How long has it been so far
+            print(f"Elapsed: {elapsed}s", end="\r")
+        
+        time.sleep(0.2)
+
+    if print_timer:
+        print(f"Elapsed: {duration}s", end="\r")
+
+    return "SAFE"
+
 # -- EPOCH 1 => THREAT PROB. 0.2 --
 threat_prob = 0.2
-num_trials = 10
-num_events = num_trials*threat_prob
+num_trials = 5
+num_events = int(num_trials*threat_prob)
+
 outcomes = [True] * num_events + [False] * (num_trials - num_events)
 random.shuffle(outcomes)
 
+env = GridEnvironment()
 print("Starting epoch...")
-for trial_number in range(1, num_trials + 1): #Maybe it is a threat-trial or not
+for trial_number in range(1, num_trials + 1): 
     print(f"\n--- Trial {trial_number} ---")
 
-    # Randomly determining how long the foraging phase will be
+    env.reset()
+
+    #Randomly determining how long the foraging phase will be
     forage_phase_time = random.randint(3, 15)
     print(f"Foraging for {forage_phase_time} seconds...")
 
     # -- Phase 1: Foraging phase --
-    end_time = time.time() + forage_phase_time
-    while time.time() < end_time
-        #Agent will collect tokens here.
-        pass
+    status = wait_and_act(env, forage_phase_time, is_chasing_phase=False, print_timer=True)
+    print() 
 
-    event_happens = outcomes.pop() #True or False: Will a threat appear?
+    event_happens = outcomes.pop() #Will there be a threat?
 
-    if event_happens:
-        #Agent will see the threat here
+    if event_happens and status != "CAUGHT":
+        # -- Phase 2: Chase phase --
+        print("Threat appeared. Chase phase 5 seconds...")
+        wait_and_act(env, 5, is_chasing_phase=True, print_timer=True)
     else:
-        #Safe trial... continue until 15 seconds
-        
-print("\nEpoch finished.")
-    
+        remainig_time = 20-forage_phase_time
+        print("Safe trial. Keep collecting tokens...")
+        wait_and_act(env, remainig_time,is_chasing_phase=False, print_timer=True)    
 
+print("\nEpoch finished")
