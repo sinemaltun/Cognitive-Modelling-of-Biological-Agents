@@ -14,7 +14,8 @@
 # Then 2 times out of these 10 trials, a threat will appear.
 
 # --- TO DOs ---
-# 1. Integrate grid.spawn_tokens()
+# 1. Integrate grid.spawn_tokens() --done (inside env.step)
+# 2. Integrate SARSA
 
 from libraries import *
 
@@ -27,7 +28,12 @@ def wait_and_act(env, duration, is_chase_phase=False, print_timer=False):
         #But later, SARSA or Q-learning algorithm will decide this
         action = random.randint(0, 3)
 
-        status, reward = env.step(action, is_chase_phase)
+        state, status, reward = env.step(action, is_chase_phase)
+        #State = agent and threat coodinates
+        #Status = CAUGHT or SAFE
+        #Reward = Total reward so far
+        
+        env.render() #trigger the visualizer
 
         if status == "CAUGHT":
             print("THE AGENT IS CAUGHT BY THE THREAT")
@@ -64,7 +70,7 @@ for trial_number in range(1, num_trials + 1):
     print(f"Foraging for {forage_phase_time} seconds...")
 
     # -- Phase 1: Foraging phase --
-    status = wait_and_act(env, forage_phase_time, is_chasing_phase=False, print_timer=True)
+    status = wait_and_act(env, forage_phase_time, is_chase_phase=False, print_timer=False)
     print() 
 
     event_happens = outcomes.pop() #Will there be a threat?
@@ -72,10 +78,10 @@ for trial_number in range(1, num_trials + 1):
     if event_happens and status != "CAUGHT":
         # -- Phase 2: Chase phase --
         print("Threat appeared. Chase phase 5 seconds...")
-        wait_and_act(env, 5, is_chasing_phase=True, print_timer=True)
+        wait_and_act(env, 5, is_chase_phase=True, print_timer=False)
     else:
         remainig_time = 20-forage_phase_time
         print("Safe trial. Keep collecting tokens...")
-        wait_and_act(env, remainig_time,is_chasing_phase=False, print_timer=True)    
+        wait_and_act(env, remainig_time,is_chase_phase=False, print_timer=False)    
 
 print("\nEpoch finished")
