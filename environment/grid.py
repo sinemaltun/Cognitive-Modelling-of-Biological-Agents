@@ -1,17 +1,20 @@
+#GridEnvironment class
+
 # --- TO DOs ---
 # 1. Implement boundary logics --done
 # 2. Episode reset: Start new trial --done
 # 3. Define reward returns, step() function should retur alongside game status. --done
 # 4. Package environment state into a tuple format for SARSA --done
-# 5. Visualizations --done
+# 5. ASCII Visualizations --done
+# 6. Add action "stay in place" --done
 
-
-#GridEnvironment class
-from libraries import *
+from utils.libraries import *
 
 class GridEnvironment:
     def __init__(self):
         #the grid is 24x16
+        self.width = 24 
+        self.height = 16
         self.safe_zone = [23,15]
 
         #Threat takes 2 steps for every 1 agent step
@@ -25,12 +28,15 @@ class GridEnvironment:
             
         self.tokens = [] #Holds token coordinates
         self.collected_tokens = 0
-        self.spawn_token(11) #initially 11 tokens in the grid
+        self.spawn_token(15) #initially 15 tokens in the grid
 
         self.rewards = {"take_step": -1,
                         "hit_wall": -2,
                         "collect_token": +10,
                         "is_caught": -100}
+        
+        self.step_counter = 0
+
         return self.get_state()
         
     def get_state(self):
@@ -66,6 +72,14 @@ class GridEnvironment:
             self.threat_pos[1] -= 1
 
     def step(self, agent_action, is_chase_phase=False):
+        self.step_counter += 1
+        
+        # wait_and_act() pauses for 0.2 seconds per step. That means:
+        # 1 turn/step of the game = 0.2 seconds
+        # and 10 steps = 2 seconds
+        if self.step_counter % 10 == 0: 
+            self.spawn_token(3) #Spawn 3 new tokens every 2 seconds=every 10 steps
+        
         step_reward = self.rewards["take_step"] #initialize step_reward, then keep adding
 
         #Agent position should be updated based on agent_action
@@ -73,9 +87,11 @@ class GridEnvironment:
         new_y = self.agent_pos[1]
 
         if agent_action == 0: new_y -= 1 #Up                
-        if agent_action == 1: new_x += 1 #Right                
-        if agent_action == 2: new_y += 1 #Down                
-        if agent_action == 3: new_x -= 1 #Left     
+        elif agent_action == 1: new_x += 1 #Right                
+        elif agent_action == 2: new_y += 1 #Down                
+        elif agent_action == 3: new_x -= 1 #Left   
+        # --NEW--
+        elif agent_action == 4: pass #Stay   
         
         #Implement boundaries
         if 0<=new_x<=23 and 0<=new_y<=15:
@@ -105,9 +121,13 @@ class GridEnvironment:
         
         return self.get_state(), "SAFE", step_reward
 
-    def render(self):
+    def render(self, header_message=""):
         """Prints a visual of the grid to the terminal"""
         os.system('cls' if os.name == 'nt' else 'clear') #Clear terminal. cls for Windows, clear for Mac/Linux
+
+        if header_message: #trial number, phase info... etc
+            print(header_message)
+
         print("\n" + "="*50)
         for y in range(16): #0 to 15 y coordinates 
             row_string = ""
@@ -130,4 +150,3 @@ class GridEnvironment:
 
         print(f"Tokens Collected: {self.collected_tokens}")
         print("="*50 + "\n")
-    

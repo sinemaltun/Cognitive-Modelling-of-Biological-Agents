@@ -1,6 +1,6 @@
 #A script to test small bits of my code
 
-from libraries import *
+from utils.libraries import *
 """
 #the grid is 24x16
 agent_pos = [0, 0]
