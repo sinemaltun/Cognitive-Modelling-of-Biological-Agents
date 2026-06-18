@@ -1,127 +1,281 @@
 import random
+import time
+from enum import Enum
+
+from entities import (
+    Position,
+    Player,
+    Predator,
+    Token,
+    SafeZone,
+)
 
 from environment.grid import Grid
-from environment.state import build_state
+from environment.state import build_sarsa_state
 
-from entities.player import Player
-from entities.predator import Predator
-from entities.token import Token
-from entities.safezone import SafeZone
+
+class Phase(Enum):
+    FORAGING = 0
+    CHASE = 1
+    FINISHED = 2
+
+
+class Status(Enum):
+    RUNNING = 0
+    SAFE = 1
+    CAUGHT = 2
+    TIMEOUT = 3
+
+
+class Action(Enum):
+    UP = 0
+    RIGHT = 1
+    DOWN = 2
+    LEFT = 3
+    STAY = 4
+
+
+ACTION_DELTAS = {
+    Action.UP: (0, -1),
+    Action.RIGHT: (1, 0),
+    Action.DOWN: (0, 1),
+    Action.LEFT: (-1, 0),
+    Action.STAY: (0, 0),
+}
 
 
 class ForagingGame:
+    def __init__(
+        self,
+        width: int = 24,
+        height: int = 16,
+        trial_duration: float = 20.0,
+        chase_duration: float = 5.0,
+        min_forage_time: float = 3.0,
+        max_forage_time: float = 15.0,
+        initial_tokens: int = 11,
+        threat_probability: float = 0.2,
+        predator_speed: int = 2,
+    ):
+        self.grid = Grid(width, height)
 
-    ACTIONS = {
-        0: (0, -1),  # up
-        1: (0, 1),   # down
-        2: (-1, 0),  # left
-        3: (1, 0),   # right
-        4: (0, 0)    # stay
-    }
+        self.trial_duration = trial_duration
+        self.chase_duration = chase_duration
+        self.min_forage_time = min_forage_time
+        self.max_forage_time = max_forage_time
+        self.initial_tokens = initial_tokens
+        self.threat_probability = threat_probability
+        self.predator_speed = predator_speed
 
-    def __init__(self):
+        self.rewards = {
+            "step": -1,
+            "hit_wall": -2,
+            "collect_token": 10,
+            "caught": -100,
+            "safe_escape": 25,
+            "survive_trial": 10,
+        }
 
-        self.grid = Grid(24, 16)
-
-        self.max_steps = 200
+        self.phase = Phase.FORAGING
+        self.status = Status.RUNNING
 
         self.reset()
 
     def reset(self):
+        self.phase = Phase.FORAGING
+        self.status = Status.RUNNING
 
-        self.steps = 0
+        self.start_time = time.time()
+        self.phase_start_time = self.start_time
 
-        self.player = Player(2, 2)
+        self.forage_duration = random.uniform(
+            self.min_forage_time,
+            self.max_forage_time,
+        )
 
-        self.safe_zone = SafeZone(0, 0)
+        self.threat_will_appear = (
+            random.random() < self.threat_probability
+        )
+
+        self.safe_zone = SafeZone(
+            Position(self.grid.width - 1, self.grid.height - 1)
+        )
 
         self.predator = Predator(
-            23,
-            15,
-            wake_probability=0.002
+            position=Position(0, 0),
+            awake=False,
+            speed=self.predator_speed,
         )
 
-        self.tokens = self.generate_tokens(20)
+        self.player = Player(
+            position=self._random_empty_position(
+                forbidden={
+                    self.safe_zone.position,
+                    self.predator.position,
+                }
+            )
+        )
 
-        return build_state(self)
+        self.tokens = []
+        self.spawn_tokens(self.initial_tokens)
 
-    def generate_tokens(self, n):
+        return self.get_state()
 
-        tokens = []
+    def get_state(self):
+        return build_sarsa_state(self)
 
-        for _ in range(n):
+    def elapsed_time(self) -> float:
+        return time.time() - self.start_time
 
-            x = random.randint(0, 23)
-            y = random.randint(0, 15)
+    def phase_elapsed_time(self) -> float:
+        return time.time() - self.phase_start_time
 
-            tokens.append(Token(x, y))
+    def remaining_trial_time(self) -> float:
+        return max(
+            0.0,
+            self.trial_duration - self.elapsed_time()
+        )
 
-        return tokens
+    def remaining_chase_time(self) -> float:
+        if self.phase != Phase.CHASE:
+            return 0.0
+
+        return max(
+            0.0,
+            self.chase_duration - self.phase_elapsed_time()
+        )
 
     def step(self, action):
+        if self.phase == Phase.FINISHED:
+            return self.get_state(), 0, True, self._info()
 
-        self.steps += 1
+        if isinstance(action, int):
+            action = Action(action)
 
-        dx, dy = self.ACTIONS[action]
+        reward = self.rewards["step"]
 
-        new_x = self.player.x + dx
-        new_y = self.player.y + dy
+        reward += self._move_player(action)
 
-        if self.grid.inside(new_x, new_y):
-            self.player.move(dx, dy)
+        reward += self._collect_token_if_present()
 
-        reward = -0.01
+        self._maybe_start_chase()
 
-        reward += self.collect_tokens()
+        if self.phase == Phase.CHASE:
+            reward += self._move_predator()
 
-        self.predator.update(self.player)
+        reward += self._check_terminal_conditions()
 
-        done = False
+        done = self.phase == Phase.FINISHED
 
-        if self.predator.catches(self.player):
+        return self.get_state(), reward, done, self._info()
 
-            reward -= 20
-            done = True
+    def _move_player(self, action: Action) -> int:
+        dx, dy = ACTION_DELTAS[action]
 
-        elif self.player_in_safe_zone():
+        new_position = self.player.position.moved(dx, dy)
 
-            reward += 5
-            done = True
+        if self.grid.inside(new_position):
+            self.player.move_to(new_position)
+            return 0
 
-        elif self.steps >= self.max_steps:
+        return self.rewards["hit_wall"]
 
-            done = True
+    def _collect_token_if_present(self) -> int:
+        for token in list(self.tokens):
+            if token.position == self.player.position:
+                self.tokens.remove(token)
+                self.player.collect_token()
+                self.spawn_tokens(1)
+                return self.rewards["collect_token"]
 
-        return (
-            build_state(self),
-            reward,
-            done
+        return 0
+
+    def _maybe_start_chase(self) -> None:
+        if self.phase != Phase.FORAGING:
+            return
+
+        forage_time_over = (
+            self.phase_elapsed_time() >= self.forage_duration
         )
 
-    def collect_tokens(self):
+        if forage_time_over and self.threat_will_appear:
+            self.phase = Phase.CHASE
+            self.status = Status.RUNNING
+            self.phase_start_time = time.time()
+            self.predator.wake_up()
 
-        collected = []
+    def _move_predator(self) -> int:
+        for _ in range(self.predator.speed):
+            self.predator.move_towards(self.player.position)
 
-        reward = 0
-
-        for token in self.tokens:
-
-            if (
-                token.x == self.player.x and
-                token.y == self.player.y
+            if self.predator.catches(
+                self.player.position,
+                self.safe_zone.position,
             ):
-                reward += 1
-                self.player.tokens += 1
-                collected.append(token)
+                self.player.lose_tokens()
+                self.status = Status.CAUGHT
+                self.phase = Phase.FINISHED
+                return self.rewards["caught"]
 
-        for token in collected:
-            self.tokens.remove(token)
+        return 0
 
-        return reward
+    def _check_terminal_conditions(self) -> int:
+        if self.status == Status.CAUGHT:
+            return 0
 
-    def player_in_safe_zone(self):
+        if self.safe_zone.contains(self.player.position):
+            if self.phase == Phase.CHASE:
+                self.status = Status.SAFE
+                self.phase = Phase.FINISHED
+                return self.rewards["safe_escape"]
 
-        return (
-            self.player.x == self.safe_zone.x and
-            self.player.y == self.safe_zone.y
+        if self.phase == Phase.CHASE:
+            if self.phase_elapsed_time() >= self.chase_duration:
+                self.status = Status.SAFE
+                self.phase = Phase.FINISHED
+                return self.rewards["safe_escape"]
+
+        if self.elapsed_time() >= self.trial_duration:
+            self.status = Status.TIMEOUT
+            self.phase = Phase.FINISHED
+            return self.rewards["survive_trial"]
+
+        return 0
+
+    def spawn_tokens(self, amount: int = 1) -> None:
+        forbidden = {
+            self.safe_zone.position,
+            self.predator.position,
+            self.player.position,
+        }
+
+        forbidden.update(
+            token.position for token in self.tokens
         )
+
+        for _ in range(amount):
+            position = self._random_empty_position(forbidden)
+            self.tokens.append(Token(position))
+            forbidden.add(position)
+
+    def _random_empty_position(self, forbidden: set[Position]) -> Position:
+        while True:
+            position = Position(
+                random.randint(0, self.grid.width - 1),
+                random.randint(0, self.grid.height - 1),
+            )
+
+            if position not in forbidden:
+                return position
+
+    def _info(self) -> dict:
+        return {
+            "phase": self.phase,
+            "status": self.status,
+            "tokens_collected": self.player.collected_tokens,
+            "elapsed_time": self.elapsed_time(),
+            "remaining_trial_time": self.remaining_trial_time(),
+            "remaining_chase_time": self.remaining_chase_time(),
+            "threat_will_appear": self.threat_will_appear,
+            "forage_duration": self.forage_duration,
+        }

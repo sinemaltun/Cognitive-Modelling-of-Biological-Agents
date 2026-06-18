@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 
+from entities.position import Position
 
-@dataclass
+
+@dataclass(frozen=True)
 class Token:
-    x: int
-    y: int
-
-    def position(self):
-        return self.x, self.y
+    position: Position

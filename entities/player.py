@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 
+from entities.position import Position
+
 
 @dataclass
 class Player:
-    x: int
-    y: int
-    tokens: int = 0
+    position: Position
+    collected_tokens: int = 0
 
-    def position(self):
-        return self.x, self.y
+    def move_to(self, new_position: Position) -> None:
+        self.position = new_position
 
-    def move(self, dx: int, dy: int):
-        self.x += dx
-        self.y += dy
+    def collect_token(self) -> None:
+        self.collected_tokens += 1
+
+    def lose_tokens(self) -> None:
+        self.collected_tokens = 0

@@ -1,44 +1,47 @@
 from dataclasses import dataclass
-import random
+
+from entities.position import Position
 
 
 @dataclass
 class Predator:
-    x: int
-    y: int
-
-    wake_probability: float
-
+    position: Position
     awake: bool = False
+    speed: int = 2
 
-    def position(self):
-        return self.x, self.y
+    def wake_up(self) -> None:
+        self.awake = True
 
-    def update(self, player):
+    def put_to_sleep(self) -> None:
+        self.awake = False
 
-        if not self.awake:
+    def move_towards(self, target: Position) -> None:
+        """
+        Move one grid cell toward the target using Manhattan pursuit.
+        Prioritizes horizontal movement first, then vertical movement.
+        """
 
-            if random.random() < self.wake_probability:
-                self.awake = True
+        x = self.position.x
+        y = self.position.y
 
-            return
+        if x < target.x:
+            x += 1
+        elif x > target.x:
+            x -= 1
+        elif y < target.y:
+            y += 1
+        elif y > target.y:
+            y -= 1
 
-        self.chase(player)
+        self.position = Position(x, y)
 
-    def chase(self, player):
+    def catches(self, player_position: Position, safe_zone_position: Position) -> bool:
+        """
+        Predator catches the player only if they share a position
+        and the player is not inside the safe zone.
+        """
 
-        if self.x < player.x:
-            self.x += 1
-        elif self.x > player.x:
-            self.x -= 1
-
-        if self.y < player.y:
-            self.y += 1
-        elif self.y > player.y:
-            self.y -= 1
-
-    def catches(self, player):
         return (
-            self.x == player.x and
-            self.y == player.y
+            self.position == player_position
+            and player_position != safe_zone_position
         )

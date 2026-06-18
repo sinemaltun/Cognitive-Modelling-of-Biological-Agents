@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
+from entities.position import Position
 
-@dataclass
+
+@dataclass(frozen=True)
 class SafeZone:
-    x: int
-    y: int
+    position: Position
 
-    def position(self):
-        return self.x, self.y
+    def contains(self, position: Position) -> bool:
+        return self.position == position

@@ -1,12 +1,13 @@
-class Grid:
+from entities import Position
 
-    def __init__(self, width=24, height=16):
+
+class Grid:
+    def __init__(self, width: int = 24, height: int = 16):
         self.width = width
         self.height = height
 
-    def inside(self, x, y):
-
+    def inside(self, position: Position) -> bool:
         return (
-            0 <= x < self.width and
-            0 <= y < self.height
+            0 <= position.x < self.width
+            and 0 <= position.y < self.height
         )
