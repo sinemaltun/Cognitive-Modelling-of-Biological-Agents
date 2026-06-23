@@ -1,3 +1,6 @@
+#This file will be deleted soon.
+# It is replaced with train.py and test.py
+
 # --- SET-UP EXPLANATION ---
 # 1 epoch 10 trials.
 # how do we measure time? --Implementing seconds

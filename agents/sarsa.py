@@ -1,27 +1,71 @@
 #SarsaAgent class
 
+# A very helpful source 
+# https://falabellaindia.com/portfolio/reinforcement-learning-implementation-using-sarsa/
+
 # --- TO DOs ---
-# 1.
+# 1. Build SarsaAgent with dictionary Q-table and save/load funcs --done
+# 2. Tune gamma so that the agent cares about distanced-tokens (to motivate traveling across the grid)
+
 
 from utils.libraries import *
-env = GridEnvironment()
 
 class SarsaAgent:
-    def __init__(self):
-        self.q_table = np.zeros((env.height, env.width, 5)) #Q-table
-        self.alpha = 0.8 #learning ratel
-        self.gamma = 0.9 #discount_factor
-        self.epsilon = 0.1 #exploration
-        #env.get_state()
+    def __init__(self, alpha=0.8, gamma=0.99,epsilon=0.1):
+        self.q_table = {} #Q-table
+        self.alpha = alpha #learning ratel
+        self.gamma = gamma #discount_factor
+        self.epsilon = epsilon #exploration
+        self.actions = [0,1,2,3,4] #up,right,down,left,stay
+
+    def get_q_values(self,state):
+        """Fetches Q-values for a state, creating them if the state is new."""
+        if state not in self.q_table:
+            self.q_table[state] = np.zeros(5)
+            
+        return self.q_table[state]
         
     def choose_action(self, state):
-        action = 0
+        """Epsilon-greedy action selection."""
+        q_values = self.get_q_values(state)
+        # A Q-value is the immediate reward+discounted sum of all the rewards
+        # the agent expects to get for the rest of the entire game
+        # if it plays perfectly from now on. 
+        # --> CHECK "target"
+
+        #explore
         if np.random.uniform(0,1) < self.epsilon:
-            action = env.action_space.sample()
-        else:
-            action = np.argmax(self.q_table[self.state, :])
-        
-        return action
+            return random.choice(self.actions)
     
-    def learn(self, state, state_next, reward, action, action_next):
+        #exploit
+        max_val = np.max(q_values)
+        best_actions = [act for act in self.actions if q_values[act]==max_val]
+        return random.choice(best_actions) #break ties randomly if multiple actions have the same max value
+
+
+    def learn(self, state, action, reward, state_next, action_next):
+        """Updates the Q-table using the SARSA equation."""
+
+        # Baseline assumption
+        # based on my past experiences, what is the value of taking this specific action in this specific state?
+        predict = self.get_q_values(state)[action]
+
+        # Take a step and see
+        # target = what the Q-value should've been
+        target = reward + self.gamma * self.get_q_values(state_next)[action_next]
         
+        # temporal difference error = (target - predict)
+        self.q_table[state][action] = predict + self.alpha * (target-predict)
+
+    def save_model(self, file_path="models/sarsa_q_table.pkl"):
+        """Saves the Q-table."""
+        with open(file_path, 'wb') as f:
+            pickle.dump(self.q_table,f)
+
+    def load_model(self,file_path="models/sarsa_q_table.pkl"):
+        """Loads the Q-table."""
+        try:
+            with open(file_path, 'rb') as f:
+                self.q_table = pickle.load(f)
+        except FileNotFoundError:
+            print("No saved model found")

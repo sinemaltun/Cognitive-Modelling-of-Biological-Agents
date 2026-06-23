@@ -7,6 +7,10 @@
 # 4. Package environment state into a tuple format for SARSA --done
 # 5. ASCII Visualizations --done
 # 6. Add action "stay in place" --done
+# 7. Tune rewards --done
+# 8. Add token radar to state representation to improve token collection --done
+# 9. Add threat probability to state represention to motivate token collection
+# 10. Increase token on the grid
 
 from utils.libraries import *
 
@@ -30,9 +34,9 @@ class GridEnvironment:
         self.collected_tokens = 0
         self.spawn_token(15) #initially 15 tokens in the grid
 
-        self.rewards = {"take_step": -1,
+        self.rewards = {"take_step": -0.1,
                         "hit_wall": -2,
-                        "collect_token": +10,
+                        "collect_token": +20,
                         "is_caught": -100}
         
         self.step_counter = 0
@@ -40,9 +44,26 @@ class GridEnvironment:
         return self.get_state()
         
     def get_state(self):
-        """Packages the environment state into a tuple format SARSA can read."""
+        """Packages the environment state into a tuple format SARSA can read
+        and informs the agent of nearby tokens."""
+        if len(self.tokens)>0:
+            #find token with shortest Manhattan distance
+            closest = min(self.tokens, key=lambda t: abs(t[0]-self.agent_pos[0]) + abs(t[1]-self.agent_pos[1]))
+        
+        #simple directions (-1, 0, or 1)
+        token_dx = 0
+        if closest[0] > self.agent_pos[0]: token_dx = 1
+        elif closest[0] < self.agent_pos[0]: token_dx = -1
+
+        token_dy = 0
+        if closest[1] > self.agent_pos[1]: token_dy = 1
+        elif closest[1] < self.agent_pos[1]: token_dy = -1
+        else: #No tokens on the grid
+            token_dx, token_dy = 0, 0
+
         return (self.agent_pos[0], self.agent_pos[1],
-                self.threat_pos[0],self.threat_pos[1])
+                self.threat_pos[0],self.threat_pos[1],
+                token_dx, token_dy)
 
     def spawn_token(self, amount=1):
         """Spawn a specific amount of tokens in valid, empty coordinates."""
