@@ -1,23 +1,29 @@
 def build_sarsa_state(env):
-    player_pos = env.player.position
-    predator_pos = env.predator.position
-    safe_pos = env.safe_zone.position
+    player = env.player.position
+    predator = env.predator.position
+    safe = env.safe_zone.position
 
-    distance_to_predator = player_pos.manhattan_distance(predator_pos)
-    distance_to_safe_zone = player_pos.manhattan_distance(safe_pos)
+    nearest_token = min(
+        env.tokens,
+        key=lambda token: player.manhattan_distance(token.position)
+    )
 
-    if env.tokens:
-        distance_to_nearest_token = min(
-            player_pos.manhattan_distance(token.position)
-            for token in env.tokens
-        )
-    else:
-        distance_to_nearest_token = 0
+    token_dx = nearest_token.position.x - player.x
+    token_dy = nearest_token.position.y - player.y
+
+    predator_dx = predator.x - player.x
+    predator_dy = predator.y - player.y
+
+    safe_dx = safe.x - player.x
+    safe_dy = safe.y - player.y
 
     return (
-        distance_to_predator,
-        distance_to_safe_zone,
-        distance_to_nearest_token,
+        token_dx,
+        token_dy,
+        predator_dx,
+        predator_dy,
+        safe_dx,
+        safe_dy,
         int(env.predator.awake),
         env.phase.value,
     )

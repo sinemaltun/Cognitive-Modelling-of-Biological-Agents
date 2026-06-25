@@ -3,10 +3,10 @@ from collections import defaultdict
 
 import numpy as np
 import pickle
+from pathlib import Path
 
 from agents.base_agent import BaseAgent
 from environment import Action
-
 
 class SARSAAgent(BaseAgent):
     def __init__(
@@ -34,10 +34,7 @@ class SARSAAgent(BaseAgent):
         if random.random() < self.epsilon:
             return random.choice(self.actions)
 
-        q_values = self.q[state]
-        best_index = int(np.argmax(q_values))
-
-        return self.actions[best_index]
+        return self.greedy_action(state)
 
     def update(
         self,
@@ -74,16 +71,20 @@ class SARSAAgent(BaseAgent):
 
     def greedy_action(self, state):
         q_values = self.q[state]
-        best_index = int(np.argmax(q_values))
+
+        max_q = np.max(q_values)
+        best_indices = np.flatnonzero(q_values == max_q)
+        best_index = random.choice(best_indices)
+
         return self.actions[best_index]
 
 # Training
 
-    def save(self, path: str) -> None:
+    def save(self, path: str | Path) -> None:
         with open(path, "wb") as file:
             pickle.dump(dict(self.q), file)
 
-    def load(self, path: str) -> None:
+    def load(self, path: str | Path) -> None:
         with open(path, "rb") as file:
             loaded_q = pickle.load(file)
 

@@ -1,20 +1,28 @@
 from environment import ForagingGame
 from agents import SARSAAgent
+from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODEL_DIR = PROJECT_ROOT / "models"
+MODEL_DIR.mkdir(exist_ok=True)
 
-EPISODES = 5000
+MODEL_PATH = MODEL_DIR / "sarsa_agent.pkl"
+
+EPISODES = 10000
 
 
 def main():
 
     env = ForagingGame(
-        threat_probability=0.2
+        threat_probability=0.2,
+        realtime=False,
+        steps_per_second=10,
     )
 
     agent = SARSAAgent(
         alpha=0.1,
         gamma=0.95,
-        epsilon=0.1
+        epsilon=0.8
     )
 
     episode_rewards = []
@@ -90,7 +98,7 @@ def main():
                 f"Epsilon {agent.epsilon:.3f}"
             )
 
-    agent.save("sarsa_agent.pkl")
+    agent.save(MODEL_PATH)
     print("Saved trained agent to sarsa_agent.pkl")
     print("Training finished.")
 

@@ -12,6 +12,7 @@ from entities import (
 
 from environment.grid import Grid
 from environment.state import build_sarsa_state
+from config.rewards import REWARDS
 
 
 class Phase(Enum):
@@ -56,6 +57,9 @@ class ForagingGame:
         initial_tokens: int = 11,
         threat_probability: float = 0.2,
         predator_speed: int = 2,
+        rewards: dict | None = None,
+        realtime: bool = True,
+        steps_per_second: int = 10,
     ):
         self.grid = Grid(width, height)
 
@@ -67,14 +71,13 @@ class ForagingGame:
         self.threat_probability = threat_probability
         self.predator_speed = predator_speed
 
-        self.rewards = {
-            "step": -1,
-            "hit_wall": -2,
-            "collect_token": 10,
-            "caught": -100,
-            "safe_escape": 25,
-            "survive_trial": 10,
-        }
+        self.realtime = realtime
+        self.steps_per_second = steps_per_second
+        self.dt = 1.0 / steps_per_second
+
+        self.rewards = REWARDS.copy()
+        if rewards is not None:
+            self.rewards.update(rewards)
 
         self.phase = Phase.FORAGING
         self.status = Status.RUNNING
@@ -87,6 +90,9 @@ class ForagingGame:
 
         self.start_time = time.time()
         self.phase_start_time = self.start_time
+
+        self.simulated_time = 0.0
+        self.phase_simulated_time = 0.0
 
         self.forage_duration = random.uniform(
             self.min_forage_time,
@@ -125,10 +131,16 @@ class ForagingGame:
         return build_sarsa_state(self)
 
     def elapsed_time(self) -> float:
-        return time.time() - self.start_time
+        if self.realtime:
+            return time.time() - self.start_time
+
+        return self.simulated_time
 
     def phase_elapsed_time(self) -> float:
-        return time.time() - self.phase_start_time
+        if self.realtime:
+            return time.time() - self.phase_start_time
+
+        return self.phase_simulated_time
 
     def remaining_trial_time(self) -> float:
         return max(
@@ -152,9 +164,22 @@ class ForagingGame:
         if isinstance(action, int):
             action = Action(action)
 
+        if not self.realtime:
+            self.simulated_time += self.dt
+            self.phase_simulated_time += self.dt
+
         reward = self.rewards["step"]
 
+        old_distance = self._distance_to_nearest_token()
+
         reward += self._move_player(action)
+
+        new_distance = self._distance_to_nearest_token()
+
+        if new_distance < old_distance:
+            reward += self.rewards["move_towards_token"]
+        elif new_distance > old_distance:
+            reward -= self.rewards["move_towards_token"]
 
         reward += self._collect_token_if_present()
 
@@ -190,6 +215,15 @@ class ForagingGame:
 
         return 0
 
+    def _distance_to_nearest_token (self) -> int:
+
+        player = self.player.position
+
+        return min(
+            player.manhattan_distance(token.position)
+            for token in self.tokens
+        )
+
     def _maybe_start_chase(self) -> None:
         if self.phase != Phase.FORAGING:
             return
@@ -202,6 +236,7 @@ class ForagingGame:
             self.phase = Phase.CHASE
             self.status = Status.RUNNING
             self.phase_start_time = time.time()
+            self.phase_simulated_time = 0.0
             self.predator.wake_up()
 
     def _move_predator(self) -> int:
@@ -278,4 +313,5 @@ class ForagingGame:
             "remaining_chase_time": self.remaining_chase_time(),
             "threat_will_appear": self.threat_will_appear,
             "forage_duration": self.forage_duration,
+            "realtime": self.realtime,
         }

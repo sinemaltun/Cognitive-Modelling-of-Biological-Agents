@@ -8,7 +8,8 @@ from visualization import PygameRenderer
 def main():
 
     env = ForagingGame(
-        threat_probability=0.2
+        threat_probability=0.2,
+        realtime = True,
     )
 
     agent = HumanAgent()
