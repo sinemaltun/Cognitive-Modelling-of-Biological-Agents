@@ -2,6 +2,7 @@ import random
 from collections import defaultdict
 
 import numpy as np
+import pickle
 
 from agents.base_agent import BaseAgent
 from environment import Action
@@ -75,3 +76,15 @@ class SARSAAgent(BaseAgent):
         q_values = self.q[state]
         best_index = int(np.argmax(q_values))
         return self.actions[best_index]
+
+# Training
+
+    def save(self, path: str) -> None:
+        with open(path, "wb") as file:
+            pickle.dump(dict(self.q), file)
+
+    def load(self, path: str) -> None:
+        with open(path, "rb") as file:
+            loaded_q = pickle.load(file)
+
+        self.q.update(loaded_q)

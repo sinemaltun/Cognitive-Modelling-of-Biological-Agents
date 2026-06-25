@@ -90,6 +90,8 @@ def main():
                 f"Epsilon {agent.epsilon:.3f}"
             )
 
+    agent.save("sarsa_agent.pkl")
+    print("Saved trained agent to sarsa_agent.pkl")
     print("Training finished.")
 
 
