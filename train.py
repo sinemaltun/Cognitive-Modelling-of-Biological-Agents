@@ -3,12 +3,15 @@
 
 from utils.libraries import *
 from environment.grid import GridEnvironment
+
 from agents.sarsa import SarsaAgent
-# from agents.q_learning import QLearningAgent --Later
+from agents.q_learning import QLearningAgent 
+from agents.random_agent import RandomAgent
 
 # --- CONFIGURATION ---
-# change this variable to train different agents ("SARSA", "Q-LEARNING")
-AGENT_TO_TRAIN = "SARSA" 
+# change this variable to train different agents ("SARSA", "Q-LEARNING", "RANDOM")
+#AGENT_TO_TRAIN = "SARSA" 
+AGENT_TO_TRAIN = "Q-LEARNING"
 EPOCHS = 50000
 # ---------------------
 
@@ -39,8 +42,15 @@ def run_training():
     if AGENT_TO_TRAIN == "SARSA":
         agent = SarsaAgent()
         save_path = "models/sarsa_q_table.pkl"
-    #elif AGENT_TO_TRAIN == "Q-LEARNING":
-    #    pass #for now
+
+    elif AGENT_TO_TRAIN == "Q-LEARNING":
+        agent = QLearningAgent()
+        save_path = "models/qlearning_q_table.pkl"
+
+    elif AGENT_TO_TRAIN == "RANDOM":
+        agent = RandomAgent()
+        save_path = None
+    
     else:
         print("Invalid agent selected.")
         return

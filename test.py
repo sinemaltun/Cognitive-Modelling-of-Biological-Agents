@@ -3,11 +3,16 @@
 
 from utils.libraries import *
 from environment.grid import GridEnvironment
+
 from agents.sarsa import SarsaAgent
+from agents.q_learning import QLearningAgent 
+from agents.random_agent import RandomAgent
+
 
 # --- CONFIGURATION ---
-# change this variable to test different agents ("SARSA", "Q-LEARNING")
-AGENT_TO_TEST = "SARSA" 
+# change this variable to test different agents ("SARSA", "Q-LEARNING", "RANDOM")
+# AGENT_TO_TEST = "SARSA" 
+AGENT_TO_TEST = "Q-LEARNING"
 TRIALS = 10
 THREAT_PROB = 0.2
 THREAT_TRIALS = int(TRIALS*THREAT_PROB)
@@ -47,8 +52,15 @@ def run_testing():
     if AGENT_TO_TEST == "SARSA":
         agent = SarsaAgent()
         model_path = "models/sarsa_q_table.pkl"
-    #elif AGENT_TO_TRAIN == "Q-LEARNING":
-    #    pass #for now
+    
+    elif AGENT_TO_TEST == "Q-LEARNING":
+        agent = QLearningAgent()
+        model_path = "models/qlearning_q_table.pkl"
+
+    elif AGENT_TO_TEST == "RANDOM":
+        agent = RandomAgent()
+        model_path = None
+    
     else:
         print("Invalid agent selected.")
         return
