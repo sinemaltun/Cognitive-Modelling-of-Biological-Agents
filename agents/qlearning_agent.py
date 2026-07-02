@@ -1,14 +1,15 @@
+import numpy as np
+
 from agents.tabular_td_agent import TabularTDAgent
 
 
-class SARSAAgent(TabularTDAgent):
+class QLearningAgent(TabularTDAgent):
     def update(
         self,
         state,
         action,
         reward,
         next_state,
-        next_action,
         done,
     ):
         action_index = self.action_index(action)
@@ -18,12 +19,10 @@ class SARSAAgent(TabularTDAgent):
         if done:
             target = reward
         else:
-            next_action_index = self.action_index(next_action)
-
             target = (
                 reward
                 + self.gamma
-                * self.q[next_state][next_action_index]
+                * np.max(self.q[next_state])
             )
 
         self.q[state][action_index] += (

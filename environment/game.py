@@ -11,7 +11,7 @@ from entities import (
 )
 
 from environment.grid import Grid
-from environment.state import build_sarsa_state
+from environment.state import build_sarsa_state, build_state_features
 from config.rewards import REWARDS
 
 
@@ -168,18 +168,34 @@ class ForagingGame:
             self.simulated_time += self.dt
             self.phase_simulated_time += self.dt
 
+
+        # Reward logic
         reward = self.rewards["step"]
 
-        old_distance = self._distance_to_nearest_token()
+        old_features = build_state_features(self)
 
-        reward += self._move_player(action)
+        self._move_player(action)
 
-        new_distance = self._distance_to_nearest_token()
+        new_features = build_state_features(self)
 
-        if new_distance < old_distance:
+        # Token shaping
+        if new_features.token_distance < old_features.token_distance:
             reward += self.rewards["move_towards_token"]
-        elif new_distance > old_distance:
+        elif new_features.token_distance > old_features.token_distance:
             reward -= self.rewards["move_towards_token"]
+
+        # Predator shaping
+        if new_features.predator_distance < old_features.predator_distance:
+            reward += self.rewards["move_towards_predator"]
+        elif new_features.predator_distance > old_features.predator_distance:
+            reward += self.rewards["move_away_from_predator"]
+
+        # Safe-zone shaping only during chase
+        if self.phase == Phase.CHASE:
+            if new_features.safe_distance < old_features.safe_distance:
+                reward += self.rewards["move_towards_safe_zone"]
+            elif new_features.safe_distance > old_features.safe_distance:
+                reward += self.rewards["move_away_from_safe_zone"]
 
         reward += self._collect_token_if_present()
 
@@ -194,16 +210,13 @@ class ForagingGame:
 
         return self.get_state(), reward, done, self._info()
 
-    def _move_player(self, action: Action) -> int:
+    def _move_player(self, action: Action) -> None:
         dx, dy = ACTION_DELTAS[action]
 
         new_position = self.player.position.moved(dx, dy)
 
         if self.grid.inside(new_position):
             self.player.move_to(new_position)
-            return 0
-
-        return self.rewards["hit_wall"]
 
     def _collect_token_if_present(self) -> int:
         for token in list(self.tokens):
@@ -214,15 +227,6 @@ class ForagingGame:
                 return self.rewards["collect_token"]
 
         return 0
-
-    def _distance_to_nearest_token (self) -> int:
-
-        player = self.player.position
-
-        return min(
-            player.manhattan_distance(token.position)
-            for token in self.tokens
-        )
 
     def _maybe_start_chase(self) -> None:
         if self.phase != Phase.FORAGING:
