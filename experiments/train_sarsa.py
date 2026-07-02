@@ -8,7 +8,7 @@ MODEL_DIR.mkdir(exist_ok=True)
 
 MODEL_PATH = MODEL_DIR / "sarsa_agent.pkl"
 
-EPISODES = 10000
+EPISODES = 50000
 
 
 def main():
@@ -20,9 +20,9 @@ def main():
     )
 
     agent = SARSAAgent(
-        alpha=0.1,
+        alpha=0.15,
         gamma=0.95,
-        epsilon=0.8
+        epsilon=0.9
     )
 
     episode_rewards = []

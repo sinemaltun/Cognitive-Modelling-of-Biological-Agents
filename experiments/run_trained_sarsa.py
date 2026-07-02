@@ -16,7 +16,7 @@ MODEL_PATH = MODEL_DIR / "sarsa_agent.pkl"
 def main():
 
     env = ForagingGame(
-        threat_probability=0.2,
+        threat_probability=0.5,
         realtime=True,
     )
 

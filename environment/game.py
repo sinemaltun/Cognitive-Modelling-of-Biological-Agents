@@ -168,8 +168,7 @@ class ForagingGame:
             self.simulated_time += self.dt
             self.phase_simulated_time += self.dt
 
-
-        # Reward logic
+        # TODO: Reward logic
         reward = self.rewards["step"]
 
         old_features = build_state_features(self)
@@ -178,20 +177,21 @@ class ForagingGame:
 
         new_features = build_state_features(self)
 
-        # Token shaping
-        if new_features.token_distance < old_features.token_distance:
-            reward += self.rewards["move_towards_token"]
-        elif new_features.token_distance > old_features.token_distance:
-            reward -= self.rewards["move_towards_token"]
+        # Token shaping only during foraging
+        if self.phase == Phase.FORAGING:
+            if new_features.token_distance < old_features.token_distance:
+                reward += self.rewards["move_towards_token"]
+            elif new_features.token_distance > old_features.token_distance:
+                reward -= self.rewards["move_towards_token"]
 
-        # Predator shaping
-        if new_features.predator_distance < old_features.predator_distance:
-            reward += self.rewards["move_towards_predator"]
-        elif new_features.predator_distance > old_features.predator_distance:
-            reward += self.rewards["move_away_from_predator"]
+            if new_features.safe_distance > 12:
+                reward += self.rewards["too_far_from_safe_zone"]
 
-        # Safe-zone shaping only during chase
+        # Predator and safe-zone shaping only during chase
         if self.phase == Phase.CHASE:
+            if new_features.predator_distance < old_features.predator_distance:
+                reward += self.rewards["move_towards_predator"]
+
             if new_features.safe_distance < old_features.safe_distance:
                 reward += self.rewards["move_towards_safe_zone"]
             elif new_features.safe_distance > old_features.safe_distance:

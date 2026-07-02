@@ -12,11 +12,11 @@ from environment import Action
 class TabularTDAgent(BaseAgent):
     def __init__(
         self,
-        alpha: float = 0.1,
-        gamma: float = 0.95,
-        epsilon: float = 0.1,
-        epsilon_decay: float = 0.9995,
-        min_epsilon: float = 0.02,
+        alpha: float = 0.1, # learning rate
+        gamma: float = 0.95, # discount factor
+        epsilon: float = 0.9, # exploration
+        epsilon_decay: float = 0.9999, # decay of exploration
+        min_epsilon: float = 0.02, # baseline of exploration
     ):
         self.alpha = alpha
         self.gamma = gamma
