@@ -168,7 +168,6 @@ class ForagingGame:
             self.simulated_time += self.dt
             self.phase_simulated_time += self.dt
 
-        # TODO: Reward logic
         reward = self.rewards["step"]
 
         old_features = build_state_features(self)
@@ -177,18 +176,15 @@ class ForagingGame:
 
         new_features = build_state_features(self)
 
-        # Token shaping only during foraging
         if self.phase == Phase.FORAGING:
             if new_features.token_distance < old_features.token_distance:
                 reward += self.rewards["move_towards_token"]
             elif new_features.token_distance > old_features.token_distance:
                 reward -= self.rewards["move_towards_token"]
 
-            if new_features.safe_distance > 12:
-                reward += self.rewards["too_far_from_safe_zone"]
+            reward += self._safe_distance_penalty(new_features.safe_distance)
 
-        # Predator and safe-zone shaping only during chase
-        if self.phase == Phase.CHASE:
+        elif self.phase == Phase.CHASE:
             if new_features.predator_distance < old_features.predator_distance:
                 reward += self.rewards["move_towards_predator"]
 
@@ -228,6 +224,24 @@ class ForagingGame:
 
         return 0
 
+    def _safe_distance_penalty(self, safe_distance: int) -> float:
+        """
+        Returns a gradually increasing penalty for being far away
+        from the safe zone during the foraging phase.
+        """
+
+        safe_threshold = 10
+
+        if safe_distance <= safe_threshold:
+            return 0.0
+
+        excess_distance = safe_distance - safe_threshold
+
+        return (
+                self.rewards["too_far_from_safe_zone"]
+                * excess_distance ** 2
+        )
+
     def _maybe_start_chase(self) -> None:
         if self.phase != Phase.FORAGING:
             return
@@ -251,10 +265,16 @@ class ForagingGame:
                 self.player.position,
                 self.safe_zone.position,
             ):
+                lost_token_reward = (
+                    self.player.collected_tokens
+                    * self.rewards["collect_token"]
+                )
+
                 self.player.lose_tokens()
                 self.status = Status.CAUGHT
                 self.phase = Phase.FINISHED
-                return self.rewards["caught"]
+
+                return -lost_token_reward
 
         return 0
 

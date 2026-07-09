@@ -1,21 +1,21 @@
 REWARDS = {
-    "step": -0.2,
+    "step": -0.1,
 
-    "collect_token": 5,
+    "collect_token": 10,
 
-    "caught": -200,
-    "safe_escape": 100,
-    "survive_trial": 10,
+    "safe_escape": 50,
+    "survive_trial": 20,
 
-    "move_towards_token": 1,
+    # Foraging shaping
+    "move_towards_token": 0.5,
 
-    "move_towards_predator": -2.0,
+    # Chase shaping
+    "move_towards_predator": -1.0,
+    "move_away_from_predator": 0.5,
 
-    "move_towards_safe_zone": 5.0,
-    "move_away_from_safe_zone": -5.0,
+    "move_towards_safe_zone": 1.0,
+    "move_away_from_safe_zone": -1.0,
 
-    "too_far_from_safe_zone": -1,
+    # Foraging recoverability
+    "too_far_from_safe_zone": -0.005,
 }
-
-# TODO: Agent needs more than just information about closest token to really have a choice...
-# TODO: More general file for training Q-Learning and SARSA

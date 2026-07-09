@@ -10,12 +10,12 @@ MODEL_DIR.mkdir(exist_ok=True)
 
 MODEL_PATH = MODEL_DIR / "qlearning_agent.pkl"
 
-EPISODES = 50000
+EPISODES = 100000
 
 
 def main():
     env = ForagingGame(
-        threat_probability=0.5,
+        threat_probability=0.7,
         realtime=False,
         steps_per_second=10,
     )
@@ -24,7 +24,6 @@ def main():
         alpha=0.15,
         gamma=0.95,
         epsilon=1.0,
-        epsilon_decay=0.9995,
         min_epsilon=0.05,
     )
 
