@@ -1,18 +1,6 @@
 #GridEnvironment class
-
-# --- TO DOs ---
-# 1. Implement boundary logics --done
-# 2. Episode reset: Start new trial --done
-# 3. Define reward returns, step() function should retur alongside game status. --done
-# 4. Package environment state into a tuple format for SARSA --done
-# 5. ASCII Visualizations --done
-# 6. Add action "stay in place" --done
-# 7. Tune rewards --done
-# 8. Add token radar to state representation to improve token collection --done
-# 9. Add threat probability to state represention to motivate token collection
-# 10. Increase token on the grid
-
 from utils.libraries import *
+from environment.rewards import rewards
 
 class GridEnvironment:
     def __init__(self):
@@ -28,42 +16,53 @@ class GridEnvironment:
         self.threat_pos = [0,0]
         self.agent_pos = [0, 0]
         while self.agent_pos == [0, 0]:
-            self.agent_pos = [random.randint(0, 23), random.randint(0, 15)]
+            self.agent_pos = [random.randint(0, self.width - 1), random.randint(0, self.height - 1)]
             
         self.tokens = [] #Holds token coordinates
         self.collected_tokens = 0
         self.spawn_token(15) #initially 15 tokens in the grid
-
-        self.rewards = {"take_step": -0.1,
-                        "hit_wall": -2,
-                        "collect_token": +20,
-                        "is_caught": -100}
         
+        self.rewards = rewards
+
         self.step_counter = 0
+
 
         return self.get_state()
         
-    def get_state(self):
+    def get_state(self, is_chase=False):
         """Packages the environment state into a tuple format SARSA can read
-        and informs the agent of nearby tokens."""
-        if len(self.tokens)>0:
+        and informs the agent of nearby tokens and safe zone (not coordinatial, but directional)"""
+        
+        #1) Token Radar: Points to the nearest food
+        if len(self.tokens) > 0:
             #find token with shortest Manhattan distance
             closest = min(self.tokens, key=lambda t: abs(t[0]-self.agent_pos[0]) + abs(t[1]-self.agent_pos[1]))
-        
-        #simple directions (-1, 0, or 1)
-        token_dx = 0
-        if closest[0] > self.agent_pos[0]: token_dx = 1
-        elif closest[0] < self.agent_pos[0]: token_dx = -1
-
-        token_dy = 0
-        if closest[1] > self.agent_pos[1]: token_dy = 1
-        elif closest[1] < self.agent_pos[1]: token_dy = -1
-        else: #No tokens on the grid
+            token_dx = 1 if closest[0] > self.agent_pos[0] else (-1 if closest[0] < self.agent_pos[0] else 0)
+            token_dy = 1 if closest[1] > self.agent_pos[1] else (-1 if closest[1] < self.agent_pos[1] else 0)
+        else:
             token_dx, token_dy = 0, 0
+        
+        #2) Threat Radar: Points to the threat
+        threat_dx = 1 if self.threat_pos[0] > self.agent_pos[0] else (-1 if self.threat_pos[0] < self.agent_pos[0] else 0)
+        threat_dy = 1 if self.threat_pos[1] > self.agent_pos[1] else (-1 if self.threat_pos[1] < self.agent_pos[1] else 0)
+        
+        #3) Safe Zone Radar: Points to the bunker with dyamic masking
+        if is_chase:
+            safe_dx = 1 if self.safe_zone[0] > self.agent_pos[0] else (-1 if self.safe_zone[0] < self.agent_pos[0] else 0)
+            safe_dy = 1 if self.safe_zone[1] > self.agent_pos[1] else (-1 if self.safe_zone[1] < self.agent_pos[1] else 0)
+        else:
+            #During foraging, blind the agent to the safe zone so it focuses on token
+            safe_dx, safe_dy = 0, 0
 
-        return (self.agent_pos[0], self.agent_pos[1],
-                self.threat_pos[0],self.threat_pos[1],
-                token_dx, token_dy)
+        #4) An alarm bell (1 if true, 0 if false)
+        chase_flag = 1 if is_chase else 0
+
+        #Manhattan distance to threat
+        threat_dist = abs(self.threat_pos[0] - self.agent_pos[0]) + abs(self.threat_pos[1] - self.agent_pos[1])
+        #5) 1 if dangerously close (within 2 steps), 0 otherwise
+        threat_close = 1 if threat_dist <= 2 else 0
+
+        return (token_dx, token_dy, threat_dx, threat_dy, safe_dx, safe_dy, chase_flag, threat_close)
 
     def spawn_token(self, amount=1):
         """Spawn a specific amount of tokens in valid, empty coordinates."""
@@ -71,7 +70,7 @@ class GridEnvironment:
             valid_position_found = False
 
             while not valid_position_found:
-                new_pos = [random.randint(0, 23), random.randint(0, 15)]
+                new_pos = [random.randint(0, self.width - 1), random.randint(0, self.height - 1)]
                 #Valid positions:
                 is_not_safe_zone = (new_pos != self.safe_zone)
                 is_not_threat = (new_pos != self.threat_pos)
@@ -101,7 +100,9 @@ class GridEnvironment:
         if self.step_counter % 10 == 0: 
             self.spawn_token(3) #Spawn 3 new tokens every 2 seconds=every 10 steps
         
-        step_reward = self.rewards["take_step"] #initialize step_reward, then keep adding
+        reward = self.rewards["take_step"] #initialize step_reward, then keep adding
+        
+        old_safe_dist = abs(self.safe_zone[0] - self.agent_pos[0]) + abs(self.safe_zone[1] - self.agent_pos[1])
 
         #Agent position should be updated based on agent_action
         new_x = self.agent_pos[0]
@@ -115,32 +116,48 @@ class GridEnvironment:
         elif agent_action == 4: pass #Stay   
         
         #Implement boundaries
-        if 0<=new_x<=23 and 0<=new_y<=15:
+        if 0<=new_x<self.width and 0<=new_y<self.height:
             self.agent_pos = [new_x,new_y] #Outsie the range, no position update
         else:
-            step_reward += self.rewards["hit_wall"]
+            reward += self.rewards["hit_wall"]
 
         #Token collection
         if self.agent_pos in self.tokens:
             self.tokens.remove(self.agent_pos)
             self.collected_tokens += 1
-            step_reward += self.rewards["collect_token"]
+            reward += self.rewards["collect_token"]
 
-        #Collision immediately after agent moves
-        if self.agent_pos == self.threat_pos and self.agent_pos!=self.safe_zone:
-            self.collected_tokens = 0 #agent loses all its tokens
-            return self.get_state(), "CAUGHT", self.rewards["is_caught"]
+        #Getting too close to the threat causes a penalty
+        if not is_chase_phase and abs(self.threat_pos[0] - self.agent_pos[0]) + abs(self.threat_pos[1] - self.agent_pos[1]) <= 2:
+            reward += self.rewards["near_threat"]
+
+        new_safe_dist = abs(self.safe_zone[0] - self.agent_pos[0]) + abs(self.safe_zone[1] - self.agent_pos[1])
+
 
         if is_chase_phase:
+            #Collision immediately after agent moves
+            if self.agent_pos == self.threat_pos and self.agent_pos!=self.safe_zone:
+                self.collected_tokens = 0 #agent loses all its tokens
+                return self.get_state(is_chase_phase), "CAUGHT", self.rewards["is_caught"]
+
+            if new_safe_dist < old_safe_dist:
+                reward += self.rewards["approach_bunker"]  #Closer to bunker
+            elif new_safe_dist > old_safe_dist:
+                reward += self.rewards["leave_bunker"]  #Further from bunker
+
+            if self.agent_pos == self.safe_zone:
+                reward += self.rewards["hide_in_bunker"]
+
+            #threat pursues
             for _ in range(self.threat_speed_multiplier):
-                self.move_threat() #threat pursues
+                self.move_threat()
 
                 #We check collision after EACH threat step
                 if self.agent_pos == self.threat_pos and self.agent_pos!=self.safe_zone:
                     self.collected_tokens = 0 #agent loses all its tokens
-                    return self.get_state(), "CAUGHT", self.rewards["is_caught"]
+                    return self.get_state(is_chase_phase), "CAUGHT", self.rewards["is_caught"]
         
-        return self.get_state(), "SAFE", step_reward
+        return self.get_state(is_chase_phase), "SAFE", reward
 
     def render(self, header_message=""):
         """Prints a visual of the grid to the terminal"""
@@ -150,9 +167,9 @@ class GridEnvironment:
             print(header_message)
 
         print("\n" + "="*50)
-        for y in range(16): #0 to 15 y coordinates 
+        for y in range(self.height): #0 to 15 y coordinates 
             row_string = ""
-            for x in range(24): #0 to 23 x coordinates 
+            for x in range(self.width): #0 to 23 x coordinates 
                 current_pos = [x,y]
 
                 #What exists at this specific coordinate?

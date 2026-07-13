@@ -10,7 +10,7 @@
 from utils.libraries import *
 
 class QLearningAgent:
-    def __init__(self, alpha=0.8, gamma=0.99,epsilon=0.1):
+    def __init__(self, alpha=0.1, gamma=0.99,epsilon=1):
         self.q_table = {} #Q-table
         self.alpha = alpha #learning rate
         self.gamma = gamma #discount_factor
@@ -24,7 +24,7 @@ class QLearningAgent:
             
         return self.q_table[state]
         
-    def choose_action(self, state):
+    def choose_action(self, state,is_chase_phase=False):
         """Epsilon-greedy action selection."""
         q_values = self.get_q_values(state)
 

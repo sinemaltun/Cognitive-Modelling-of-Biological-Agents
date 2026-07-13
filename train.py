@@ -10,9 +10,8 @@ from agents.random_agent import RandomAgent
 
 # --- CONFIGURATION ---
 # change this variable to train different agents ("SARSA", "Q-LEARNING", "RANDOM")
-#AGENT_TO_TRAIN = "SARSA" 
-AGENT_TO_TRAIN = "Q-LEARNING"
-EPOCHS = 50000
+AGENT_TO_TRAIN = "SARSA"
+EPOCHS = 80000
 # ---------------------
 
 def run_phase_steps(env, agent, state, action, total_steps, is_chase_phase):
@@ -74,7 +73,8 @@ def run_training():
 
         # --- Phase 2: Chase or Safe ---
         if status != "CAUGHT":
-            threat_appears = random.random() < 0.2 #%20 probability for now
+            #%50 probability while training, so the agent gets to know the threat 
+            threat_appears = random.random() < 0.5 
 
             if threat_appears:
                 #Now the agent has 5 seconds to escap
@@ -87,9 +87,13 @@ def run_training():
                 remaining_steps = int(remaining_time/0.2)
                 state, action, status = run_phase_steps(env, agent, state, action, remaining_steps, is_chase_phase=False)
 
-        if epoch % 500 == 0:
+        if epoch % 1000 == 0:
             print(f"Epoch {epoch}/{EPOCHS} complete. (Q-Table size: {len(agent.q_table)} states)")
-
+        
+        #Decay epsilon by a tiny fraction every epoch, but never go below 1%
+        #The agent starts by exploring 100% of the time and gradually reduces randomness to near-zero 
+        # as it gets smarter.
+        agent.epsilon = max(0.01, agent.epsilon * 0.9999)
     agent.save_model(file_path=save_path)
           
 

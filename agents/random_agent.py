@@ -9,8 +9,9 @@ class RandomAgent:
     def __init__(self):
         self.q_table = {}
         self.actions = [0,1,2,3,4] #up,right,down,left,stay
+        self.epsilon = 1.0 #dummy attribute so train.py doesn't crash 
         
-    def choose_action(self, state):
+    def choose_action(self, state,is_chase_phase=False):
         """Picks an action completely at random."""
         action = random.choice(self.actions)
 

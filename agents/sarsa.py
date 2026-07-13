@@ -11,21 +11,22 @@
 from utils.libraries import *
 
 class SarsaAgent:
-    def __init__(self, alpha=0.8, gamma=0.99,epsilon=0.1):
+    def __init__(self, alpha=0.1, gamma=0.99,epsilon=1):
         self.q_table = {} #Q-table
         self.alpha = alpha #learning ratel
-        self.gamma = gamma #discount_factor
+        self.gamma = gamma #discount_factor:how much it cares about future rewards
         self.epsilon = epsilon #exploration
         self.actions = [0,1,2,3,4] #up,right,down,left,stay
 
     def get_q_values(self,state):
         """Fetches Q-values for a state, creating them if the state is new."""
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(5)
+            #default unexplored actions to 0.2 so the agent is curious about them
+            self.q_table[state] = np.ones(5) * 0.2 
             
         return self.q_table[state]
         
-    def choose_action(self, state):
+    def choose_action(self, state, is_chase_phase=False):
         """Epsilon-greedy action selection."""
         q_values = self.get_q_values(state)
         # A Q-value is the immediate reward+discounted sum of all the rewards
