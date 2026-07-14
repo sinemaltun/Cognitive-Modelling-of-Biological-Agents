@@ -11,8 +11,8 @@ from agents.value_iteration import ValueIterationAgent
 # --- CONFIGURATION ---
 # change this variable to test different agents ("SARSA", "Q-LEARNING", "RANDOM", "VI")
 AGENT_TO_TEST = "VI"
-TRIALS = 2
-THREAT_PROB = 0.5
+TRIALS = 5
+THREAT_PROB = 3/5
 THREAT_TRIALS = int(TRIALS*THREAT_PROB)
 # ---------------------
 
