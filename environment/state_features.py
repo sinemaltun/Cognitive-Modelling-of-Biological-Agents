@@ -1,4 +1,8 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from environment.game import ForagingGame
 
 
 @dataclass(frozen=True)
@@ -28,7 +32,13 @@ class StateFeatures:
         return abs(self.safe_dx) + abs(self.safe_dy)
 
 
-def build_state_features(env) -> StateFeatures:
+def build_state_features(
+    env: "ForagingGame",
+) -> StateFeatures:
+    """
+    Build a rich feature representation of the current game state.
+    Used for reward shaping and feature inspection.
+    """
 
     player = env.player.position
     predator = env.predator.position
@@ -36,7 +46,9 @@ def build_state_features(env) -> StateFeatures:
 
     nearest_token = min(
         env.tokens,
-        key=lambda token: player.manhattan_distance(token.position)
+        key=lambda token: player.manhattan_distance(
+            token.position
+        ),
     )
 
     return StateFeatures(
@@ -54,7 +66,14 @@ def build_state_features(env) -> StateFeatures:
     )
 
 
-def build_sarsa_state(env):
+def build_td_state(
+    env: "ForagingGame",
+) -> tuple[int, int, int, int, int, int, int, int]:
+    """
+    Build the compact observation used by
+    tabular Temporal-Difference methods
+    (SARSA and Q-learning).
+    """
 
     features = build_state_features(env)
 

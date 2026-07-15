@@ -11,7 +11,7 @@ from entities import (
 )
 
 from environment.grid import Grid
-from environment.state import build_sarsa_state, build_state_features
+from environment.state_features import build_td_state, build_state_features
 from config.rewards import REWARDS
 
 
@@ -128,7 +128,7 @@ class ForagingGame:
         return self.get_state()
 
     def get_state(self):
-        return build_sarsa_state(self)
+        return build_td_state(self)
 
     def elapsed_time(self) -> float:
         if self.realtime:
