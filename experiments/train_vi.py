@@ -1,8 +1,9 @@
-from environment.grid_vi import GridVIEnvironment
-from agents.value_iteration import ValueIterationAgent
+import random
+from environment.game_vi import VIGameEnvironment
+from agents.value_iteration_agent import ValueIterationAgent
 
 def run_training():
-    env = GridVIEnvironment()
+    env = VIGameEnvironment()
     env.reset()
     agent = ValueIterationAgent(gamma=0.9, theta=1e-4)
 

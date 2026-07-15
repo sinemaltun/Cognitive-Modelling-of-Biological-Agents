@@ -1,16 +1,9 @@
-# --- TO DOs ---
-# 1. Split game runner into high-speed train.py and visual test.py. --done
+import random
+from environment.game import GameEnvironment
+from agents.sarsa_agent import SarsaAgent
 
-from utils.libraries import *
-from environment.grid import GridEnvironment
-
-from agents.sarsa import SarsaAgent
-from agents.q_learning import QLearningAgent 
-from agents.random_agent import RandomAgent
 
 # --- CONFIGURATION ---
-# change this variable to train different agents ("SARSA", "Q-LEARNING", "RANDOM")
-AGENT_TO_TRAIN = "SARSA"
 EPOCHS = 80000
 # ---------------------
 
@@ -36,25 +29,10 @@ def run_phase_steps(env, agent, state, action, total_steps, is_chase_phase):
 
 
 def run_training():
-    env = GridEnvironment()
-
-    if AGENT_TO_TRAIN == "SARSA":
-        agent = SarsaAgent()
-        save_path = "models/sarsa_q_table.pkl"
-
-    elif AGENT_TO_TRAIN == "Q-LEARNING":
-        agent = QLearningAgent()
-        save_path = "models/qlearning_q_table.pkl"
-
-    elif AGENT_TO_TRAIN == "RANDOM":
-        agent = RandomAgent()
-        save_path = None
-    
-    else:
-        print("Invalid agent selected.")
-        return
-
-    print(f"Started training {AGENT_TO_TRAIN} for {EPOCHS} epochs...")
+    env = GameEnvironment()
+    agent = SarsaAgent()
+    save_path = "models/sarsa_q_table.pkl"
+    print(f"Started training SARSA for {EPOCHS} epochs...")
 
     for epoch in range(1, EPOCHS+1):
         state = env.reset()#returns self.get_state()

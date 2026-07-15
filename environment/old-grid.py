@@ -1,6 +1,6 @@
 #GridEnvironment class
 from utils.libraries import *
-from environment.rewards import rewards
+from config.rewards import rewards
 
 class GridEnvironment:
     def __init__(self):
@@ -8,6 +8,8 @@ class GridEnvironment:
         self.width = 24 
         self.height = 16
         self.safe_zone = [23,15]
+        self.initial_tokens = 15
+        self.spawn_rate = 3
 
         #Threat takes 2 steps for every 1 agent step
         self.threat_speed_multiplier = 2
@@ -20,7 +22,7 @@ class GridEnvironment:
             
         self.tokens = [] #Holds token coordinates
         self.collected_tokens = 0
-        self.spawn_token(15) #initially 15 tokens in the grid
+        self.spawn_token(self.initial_tokens) #initially 15 tokens in the grid
         
         self.rewards = rewards
 
@@ -98,7 +100,7 @@ class GridEnvironment:
         # 1 turn/step of the game = 0.2 seconds
         # and 10 steps = 2 seconds
         if self.step_counter % 10 == 0: 
-            self.spawn_token(3) #Spawn 3 new tokens every 2 seconds=every 10 steps
+            self.spawn_token(self.spawn_rate) #Spawn 3 new tokens every 2 seconds=every 10 steps
         
         reward = self.rewards["take_step"] #initialize step_reward, then keep adding
         

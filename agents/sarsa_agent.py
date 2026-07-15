@@ -1,14 +1,9 @@
 #SarsaAgent class
 
-# A very helpful source 
-# https://falabellaindia.com/portfolio/reinforcement-learning-implementation-using-sarsa/
-
-# --- TO DOs ---
-# 1. Build SarsaAgent with dictionary Q-table and save/load funcs --done
-# 2. Tune gamma so that the agent cares about distanced-tokens (to motivate traveling across the grid)
-
-
-from utils.libraries import *
+import os
+import pickle
+import numpy as np
+import random
 
 class SarsaAgent:
     def __init__(self, alpha=0.1, gamma=0.99,epsilon=1):

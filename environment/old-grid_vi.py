@@ -1,5 +1,5 @@
 from utils.libraries import *
-from environment.rewards import rewards
+from config.rewards import rewards
 from environment.grid import GridEnvironment
 
 #Basic Inheritance
@@ -9,6 +9,9 @@ class GridVIEnvironment(GridEnvironment):
         self.width = 5
         self.height = 5
         self.safe_zone = [4,4]
+        self.initial_tokens = 1
+        self.spawn_rate = 1
+
         self.threat_speed_multiplier = 1 #1-to-1 movement ratio keeps the transition math clean
 
     def reset(self):
