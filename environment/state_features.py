@@ -32,9 +32,7 @@ class StateFeatures:
         return abs(self.safe_dx) + abs(self.safe_dy)
 
 
-def build_state_features(
-    env: "ForagingGame",
-) -> StateFeatures:
+def build_state_features(env: "ForagingGame",) -> StateFeatures:
     """
     Build a rich feature representation of the current game state.
     Used for reward shaping and feature inspection.
@@ -66,9 +64,7 @@ def build_state_features(
     )
 
 
-def build_td_state(
-    env: "ForagingGame",
-) -> tuple[int, int, int, int, int, int, int, int]:
+def build_td_state(env: "ForagingGame",) -> tuple[int, int, int, int, int, int, int, int]:
     """
     Build the compact observation used by
     tabular Temporal-Difference methods
