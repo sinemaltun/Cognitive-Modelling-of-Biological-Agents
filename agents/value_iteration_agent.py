@@ -36,6 +36,9 @@ class ValueIterationAgent:
 
         self.policy: dict[PlanningState,Action,] = {}
 
+        # Stores one dictionary per Bellman sweep for convergence analysis and CSV logging.
+        self.training_history: list[dict] = []
+
     @property
     def policy_size(self) -> int:
         return len(self.policy)
@@ -45,6 +48,9 @@ class ValueIterationAgent:
         return len(self.values)
 
     def metadata(self) -> dict:
+        """
+            Return general information about the trained planner.
+        """
         return {
             "gamma": self.gamma,
             "theta": self.theta,
@@ -64,6 +70,9 @@ class ValueIterationAgent:
 
         self.values = {state: 0.0 for state in state_list}
 
+        self.policy = {}
+        self.training_history = []
+
         for iteration in range(1, self.max_iterations + 1,):
             delta = 0.0
             next_values = {}
@@ -80,17 +89,27 @@ class ValueIterationAgent:
 
                 next_values[state] = best_value
 
-                delta = max(delta, abs(best_value - self.values[state]),
-                )
+                delta = max(delta, abs(best_value - self.values[state]),)
 
             self.values = next_values
+
+            converged = delta < self.theta
+
+            self.training_history.append(
+                {
+                    "iteration": iteration,
+                    "maximum_value_change": delta,
+                    "state_count": len(state_list),
+                    "converged": converged,
+                }
+            )
 
             print(
                 f"Iteration {iteration} | "
                 f"maximum change={delta:.8f}"
             )
 
-            if delta < self.theta:
+            if converged:
                 print(
                     "Value Iteration converged "
                     f"after {iteration} iterations."
@@ -106,9 +125,22 @@ class ValueIterationAgent:
         self._extract_policy(state_list, transition_function)
 
     def choose_action(self, state: PlanningState,) -> Action:
+        """
+            Return the stored policy action for a state.
+
+            STAY is used as a fallback if the supplied state was not
+            part of the trained planning state space.
+        """
         return self.policy.get(state, Action.STAY,)
 
     def _action_value(self, state: PlanningState, action: Action, transition_function: TransitionFunction,) -> float:
+        """
+            Calculate the expected Bellman value of one action:
+
+                sum over next states of
+                P(next_state | state, action) * (reward + gamma * V(next_state))
+        """
+
         expected_value = 0.0
 
         for transition in transition_function(state, action,):
@@ -122,6 +154,10 @@ class ValueIterationAgent:
         return expected_value
 
     def _extract_policy(self, states: list[PlanningState], transition_function: TransitionFunction,) -> None:
+        """
+            Derive one best action for every state after the value
+            function has converged.
+        """
         self.policy = {}
 
         for state in states:
@@ -136,30 +172,36 @@ class ValueIterationAgent:
             self.policy[state] = random.choice(best_actions)
 
     def save(self, path: str | Path,) -> None:
+        """
+            Save the value function, policy, parameters, and convergence
+            history to a pickle file.
+        """
         with open(path, "wb") as file:
             pickle.dump(
                 {
                     "gamma": self.gamma,
                     "theta": self.theta,
-                    "max_iterations": (
-                        self.max_iterations
-                    ),
+                    "max_iterations": self.max_iterations,
                     "values": self.values,
                     "policy": self.policy,
+                    "training_history": self.training_history,
                 },
                 file,
             )
 
     def load(self, path: str | Path,) -> None:
+        """
+            Load a previously saved Value Iteration model.
+        """
         with open(path, "rb") as file:
             data = pickle.load(file)
 
         self.gamma = data["gamma"]
         self.theta = data["theta"]
 
-        self.max_iterations = data[
-            "max_iterations"
-        ]
+        self.max_iterations = data["max_iterations"]
 
         self.values = data["values"]
         self.policy = data["policy"]
+
+        self.training_history = data.get("training_history",[],)

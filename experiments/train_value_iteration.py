@@ -1,36 +1,67 @@
+from datetime import datetime
 from pathlib import Path
 
 from agents import ValueIterationAgent
+from evaluation import (
+    CSVLogger,
+    ValueIterationProgressRecord,
+    save_run_config,
+)
 from planning import GridPlanningModel
 
 
-PROJECT_ROOT = (Path(__file__).resolve().parent.parent)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 MODEL_DIR = PROJECT_ROOT / "models"
-MODEL_DIR.mkdir(exist_ok=True)
+MODEL_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+RESULTS_DIR = PROJECT_ROOT / "results"
+RESULTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+RUN_ID = (
+    "value_iteration_training_"
+    + datetime.now().strftime("%Y%m%d_%H%M%S")
+)
+
+RUN_DIR = RESULTS_DIR / RUN_ID
+
+FORAGE_MODEL_PATH = (
+    MODEL_DIR / f"{RUN_ID}_forage.pkl"
+)
+
+CHASE_MODEL_PATH = (
+    MODEL_DIR / f"{RUN_ID}_chase.pkl"
+)
 
 
-def next_model_paths(model_dir: Path,) -> tuple[Path, Path]:
-    serial = 1
-
-    while True:
-        forage_path = (
-            model_dir
-            / f"value_iteration_forage_{serial:03d}.pkl"
+def log_training_history(
+    logger: CSVLogger,
+    agent: ValueIterationAgent,
+    phase: str,
+) -> None:
+    """
+    Write one CSV row for every Bellman sweep performed by
+    a Value Iteration agent.
+    """
+    for row in agent.training_history:
+        logger.log_value_iteration_progress(
+            ValueIterationProgressRecord(
+                run_id=RUN_ID,
+                phase=phase,
+                iteration=row["iteration"],
+                maximum_value_change=row[
+                    "maximum_value_change"
+                ],
+                state_count=row["state_count"],
+                converged=row["converged"],
+            )
         )
-
-        chase_path = (
-            model_dir
-            / f"value_iteration_chase_{serial:03d}.pkl"
-        )
-
-        if (
-            not forage_path.exists()
-            and not chase_path.exists()
-        ):
-            return forage_path, chase_path
-
-        serial += 1
 
 
 def main():
@@ -54,6 +85,54 @@ def main():
         max_iterations=500,
     )
 
+    logger = CSVLogger(RUN_DIR)
+
+    save_run_config(
+        RUN_DIR,
+        {
+            "run_id": RUN_ID,
+            "mode": "training",
+            "model_type": "value_iteration",
+
+            "model_paths": {
+                "foraging": str(
+                    FORAGE_MODEL_PATH
+                ),
+                "chase": str(
+                    CHASE_MODEL_PATH
+                ),
+            },
+
+            "planning_model": {
+                "width": model.width,
+                "height": model.height,
+                "safe_x": model.safe_x,
+                "safe_y": model.safe_y,
+                "predator_speed": (
+                    model.predator_speed
+                ),
+                "action_noise": (
+                    model.action_noise
+                ),
+                "caught_penalty": (
+                    model.caught_penalty
+                ),
+                "rewards": model.rewards,
+            },
+
+            "forage_agent": (
+                forage_agent.metadata()
+            ),
+
+            "chase_agent": (
+                chase_agent.metadata()
+            ),
+        },
+    )
+
+    print(f"Starting run: {RUN_ID}")
+    print(f"Results directory: {RUN_DIR}")
+
     print("Training foraging policy...")
 
     forage_agent.train(
@@ -61,6 +140,12 @@ def main():
         transition_function=(
             model.forage_transitions
         ),
+    )
+
+    log_training_history(
+        logger=logger,
+        agent=forage_agent,
+        phase="foraging",
     )
 
     print("Training chase policy...")
@@ -72,20 +157,36 @@ def main():
         ),
     )
 
-    forage_path, chase_path = (
-        next_model_paths(MODEL_DIR)
+    log_training_history(
+        logger=logger,
+        agent=chase_agent,
+        phase="chase",
     )
 
-    forage_agent.save(forage_path)
-    chase_agent.save(chase_path)
+    forage_agent.save(
+        FORAGE_MODEL_PATH
+    )
+
+    chase_agent.save(
+        CHASE_MODEL_PATH
+    )
 
     print(
-        f"Saved foraging policy to {forage_path}"
+        "Saved foraging policy to "
+        f"{FORAGE_MODEL_PATH}"
     )
 
     print(
-        f"Saved chase policy to {chase_path}"
+        "Saved chase policy to "
+        f"{CHASE_MODEL_PATH}"
     )
+
+    print(
+        "Saved convergence history to "
+        f"{RUN_DIR / 'value_iteration_progress.csv'}"
+    )
+
+    print("Training finished.")
 
 
 if __name__ == "__main__":
