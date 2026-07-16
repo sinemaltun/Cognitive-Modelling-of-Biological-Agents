@@ -14,7 +14,7 @@ EPISODES = 50000
 def main():
 
     env = ForagingGame(
-        threat_probability=0.5,
+        threat_probability=0.8,
         realtime=False,
         steps_per_second=10,
     )
