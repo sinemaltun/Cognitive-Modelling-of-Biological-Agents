@@ -1,7 +1,12 @@
+import math
+
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from config.rewards import REWARDS
+from config.rewards import (
+    FORAGING_PREDATOR_TAU,
+    REWARDS,
+)
 from environment import Action
 
 from planning.states import (
@@ -43,6 +48,8 @@ class GridPlanningModel:
         height: int = 16,
         safe_x: int | None = None,
         safe_y: int | None = None,
+        predator_start_x: int = 0,
+        predator_start_y: int = 0,
         predator_speed: int = 2,
         action_noise: float = 0.0,
         caught_penalty: float = -100.0,
@@ -77,6 +84,18 @@ class GridPlanningModel:
             if safe_y is None
             else safe_y
         )
+
+        if not (
+                0 <= predator_start_x < width
+                and 0 <= predator_start_y < height
+        ):
+            raise ValueError(
+                "The predator start position must be inside the grid."
+            )
+
+        self.predator_start_x = predator_start_x
+        self.predator_start_y = predator_start_y
+
 
         self.predator_speed = predator_speed
         self.action_noise = action_noise
@@ -124,6 +143,13 @@ class GridPlanningModel:
             state.token_y,
         )
 
+        old_predator_distance = self._manhattan_distance(
+            state.player_x,
+            state.player_y,
+            self.predator_start_x,
+            self.predator_start_y,
+        )
+
         for probability, executed_action in (self.executed_actions(intended_action)):
             next_x, next_y = self._move_player(
                 state.player_x,
@@ -140,6 +166,13 @@ class GridPlanningModel:
                 )
             )
 
+            new_predator_distance = self._manhattan_distance(
+                next_x,
+                next_y,
+                self.predator_start_x,
+                self.predator_start_y,
+            )
+
             reward = self.rewards["step"]
 
             if new_token_distance < old_token_distance:
@@ -151,6 +184,11 @@ class GridPlanningModel:
                 reward -= self.rewards[
                     "move_towards_token"
                 ]
+
+            reward += self._foraging_predator_shaping(
+                old_distance=old_predator_distance,
+                new_distance=new_predator_distance,
+            )
 
             collected = (
                 next_x == state.token_x
@@ -374,6 +412,25 @@ class GridPlanningModel:
             return next_x, next_y
 
         return x, y
+
+    def _foraging_predator_shaping(self, old_distance: int, new_distance: int,) -> float:
+        """
+        Calculate the same smooth predator-distance shaping reward
+        used by the live ForagingGame during foraging.
+        """
+
+        old_potential = 1.0 - math.exp(
+            -old_distance / FORAGING_PREDATOR_TAU
+        )
+
+        new_potential = 1.0 - math.exp(
+            -new_distance / FORAGING_PREDATOR_TAU
+        )
+
+        return (
+                self.rewards["foraging_predator_distance"]
+                * (new_potential - old_potential)
+        )
 
     @staticmethod
     def _move_predator_once(predator_x: int, predator_y: int, player_x: int, player_y: int,) -> tuple[int, int]:

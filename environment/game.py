@@ -1,3 +1,4 @@
+import math
 import random
 import time
 from enum import Enum
@@ -12,7 +13,10 @@ from entities import (
 
 from environment.grid import Grid
 from environment.state_features import build_td_state, build_state_features
-from config.rewards import REWARDS
+from config.rewards import (
+    FORAGING_PREDATOR_TAU,
+    REWARDS,
+)
 
 
 class Phase(Enum):
@@ -60,6 +64,7 @@ class ForagingGame:
         rewards: dict | None = None,
         realtime: bool = True,
         steps_per_second: int = 10,
+        action_noise: float = 0.0,
     ):
         self.grid = Grid(width, height)
 
@@ -74,6 +79,7 @@ class ForagingGame:
         self.realtime = realtime
         self.steps_per_second = steps_per_second
         self.dt = 1.0 / steps_per_second
+        self.action_noise = action_noise
 
         self.rewards = REWARDS.copy()
         if rewards is not None:
@@ -164,25 +170,45 @@ class ForagingGame:
         if isinstance(action, int):
             action = Action(action)
 
+        phase_before = self.phase
+
+        intended_action = action
+        executed_action = self._execute_action(
+            intended_action
+        )
+
+        old_position = self.player.position
+
+        self.last_token_collected = False
+        self.last_chase_started = False
+
         if not self.realtime:
             self.simulated_time += self.dt
             self.phase_simulated_time += self.dt
+
+        # REWARD LOGIC
 
         reward = self.rewards["step"]
 
         old_features = build_state_features(self)
 
-        self._move_player(action)
+        self._move_player(executed_action)
+
+        moved = (self.player.position != old_position)
 
         new_features = build_state_features(self)
 
         if self.phase == Phase.FORAGING:
             if new_features.token_distance < old_features.token_distance:
                 reward += self.rewards["move_towards_token"]
+
             elif new_features.token_distance > old_features.token_distance:
                 reward -= self.rewards["move_towards_token"]
 
-            reward += self._safe_distance_penalty(new_features.safe_distance)
+            reward += self._foraging_predator_shaping(
+                old_distance=old_features.predator_distance,
+                new_distance=new_features.predator_distance,
+            )
 
         elif self.phase == Phase.CHASE:
             if new_features.predator_distance < old_features.predator_distance:
@@ -197,6 +223,8 @@ class ForagingGame:
 
         self._maybe_start_chase()
 
+        chase_started = (phase_before == Phase.FORAGING and self.phase == Phase.CHASE)
+
         if self.phase == Phase.CHASE:
             reward += self._move_predator()
 
@@ -204,7 +232,38 @@ class ForagingGame:
 
         done = self.phase == Phase.FINISHED
 
+        # Bookkeeping
+
+        self.last_intended_action = (
+            intended_action
+        )
+
+        self.last_executed_action = (
+            executed_action
+        )
+
+        self.last_action_was_noisy = (
+                intended_action != executed_action
+        )
+
+        self.last_move_succeeded = moved
+        self.last_chase_started = chase_started
+        self.last_phase_before = phase_before
+
         return self.get_state(), reward, done, self._info()
+
+    def _execute_action(self, intended_action: Action,) -> Action:
+
+        if random.random() >= self.action_noise:
+            return intended_action
+
+        alternatives = [
+            action
+            for action in Action
+            if action != intended_action
+        ]
+
+        return random.choice(alternatives)
 
     def _move_player(self, action: Action) -> None:
         dx, dy = ACTION_DELTAS[action]
@@ -219,36 +278,32 @@ class ForagingGame:
             if token.position == self.player.position:
                 self.tokens.remove(token)
                 self.player.collect_token()
+                self.last_token_collected = True
                 self.spawn_tokens(1)
                 return self.rewards["collect_token"]
 
         return 0
 
-    def _safe_distance_penalty(self, safe_distance: int) -> float:
+    def _foraging_predator_shaping(self, old_distance: int, new_distance: int,) -> float:
         """
-        Returns a gradually increasing penalty for being far away
-        from the safe zone during the foraging phase.
+        Reward changes in distance from the sleeping predator.
+
+        Moving away produces a positive reward and moving closer
+        produces a negative reward. The effect is strongest near
+        the predator and smoothly fades as distance increases.
         """
 
-        safe_threshold = 10
+        old_potential = 1.0 - math.exp(-old_distance / FORAGING_PREDATOR_TAU)
 
-        if safe_distance <= safe_threshold:
-            return 0.0
+        new_potential = 1.0 - math.exp(-new_distance / FORAGING_PREDATOR_TAU)
 
-        excess_distance = safe_distance - safe_threshold
-
-        return (
-                self.rewards["too_far_from_safe_zone"]
-                * excess_distance ** 2
-        )
+        return (self.rewards["foraging_predator_distance"] * (new_potential - old_potential))
 
     def _maybe_start_chase(self) -> None:
         if self.phase != Phase.FORAGING:
             return
 
-        forage_time_over = (
-            self.phase_elapsed_time() >= self.forage_duration
-        )
+        forage_time_over = (self.phase_elapsed_time() >= self.forage_duration)
 
         if forage_time_over and self.threat_will_appear:
             self.phase = Phase.CHASE
@@ -265,10 +320,7 @@ class ForagingGame:
                 self.player.position,
                 self.safe_zone.position,
             ):
-                lost_token_reward = (
-                    self.player.collected_tokens
-                    * self.rewards["collect_token"]
-                )
+                lost_token_reward = (self.player.collected_tokens * self.rewards["collect_token"])
 
                 self.player.lose_tokens()
                 self.status = Status.CAUGHT
@@ -338,4 +390,10 @@ class ForagingGame:
             "threat_will_appear": self.threat_will_appear,
             "forage_duration": self.forage_duration,
             "realtime": self.realtime,
+            "intended_action": self.last_intended_action,
+            "executed_action": self.last_executed_action,
+            "action_was_noisy": self.last_action_was_noisy,
+            "moved": self.last_move_succeeded,
+            "token_collected_this_step": self.last_token_collected,
+            "chase_started_this_step": self.last_chase_started,
         }

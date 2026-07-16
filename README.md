@@ -7,7 +7,7 @@ The current game uses a 24 × 16 grid with a player, collectible tokens, a preda
 ## Project structure
 
 ```text
-moba-v1.1/
+moba/
 ├── agents/
 ├── config/
 ├── entities/

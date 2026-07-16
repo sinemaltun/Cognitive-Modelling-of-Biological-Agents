@@ -36,6 +36,29 @@ class ValueIterationAgent:
 
         self.policy: dict[PlanningState,Action,] = {}
 
+    @property
+    def policy_size(self) -> int:
+        return len(self.policy)
+
+    @property
+    def value_function_size(self) -> int:
+        return len(self.values)
+
+    def metadata(self) -> dict:
+        return {
+            "gamma": self.gamma,
+            "theta": self.theta,
+            "max_iterations": (
+                self.max_iterations
+            ),
+            "value_states": (
+                self.value_function_size
+            ),
+            "policy_states": (
+                self.policy_size
+            ),
+        }
+
     def train(self, states: Iterable[PlanningState],transition_function: TransitionFunction,) -> None:
         state_list = list(states)
 

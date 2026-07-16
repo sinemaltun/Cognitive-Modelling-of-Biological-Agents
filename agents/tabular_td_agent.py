@@ -31,6 +31,26 @@ class TabularTDAgent(BaseAgent):
             lambda: np.zeros(len(self.actions))
         )
 
+    @property
+    def q_table_size(self) -> int:
+        return len(self.q)
+
+    def metadata(self) -> dict:
+        return {
+            "alpha": self.alpha,
+            "gamma": self.gamma,
+            "epsilon": self.epsilon,
+            "epsilon_decay": (
+                self.epsilon_decay
+            ),
+            "min_epsilon": (
+                self.min_epsilon
+            ),
+            "q_table_states": (
+                self.q_table_size
+            ),
+        }
+
     def choose_action(self, state):
         if random.random() < self.epsilon:
             return random.choice(self.actions)
