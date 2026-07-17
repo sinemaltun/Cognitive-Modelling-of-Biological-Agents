@@ -7,10 +7,7 @@ class Position:
     y: int
 
     def moved(self, dx: int, dy: int) -> "Position":
-        return Position(
-            self.x + dx,
-            self.y + dy
-        )
+        return Position(self.x + dx, self.y + dy)
 
     def manhattan_distance(self, other: "Position") -> int:
         return abs(self.x - other.x) + abs(self.y - other.y)

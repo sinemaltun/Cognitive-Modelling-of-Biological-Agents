@@ -32,9 +32,7 @@ class PygameRenderer:
         self.screen_width = self.grid_width_px
         self.screen_height = self.grid_height_px + INFO_PANEL_HEIGHT
 
-        self.screen = pygame.display.set_mode(
-            (self.screen_width, self.screen_height)
-        )
+        self.screen = pygame.display.set_mode(self.screen_width, self.screen_height)
 
         pygame.display.set_caption("Foraging Threat Task")
 
@@ -74,19 +72,9 @@ class PygameRenderer:
     def _draw_grid(self):
         for x in range(self.env.grid.width):
             for y in range(self.env.grid.height):
-                rect = pygame.Rect(
-                    x * self.cell_size,
-                    y * self.cell_size,
-                    self.cell_size,
-                    self.cell_size,
-                )
+                rect = pygame.Rect(x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size,)
 
-                pygame.draw.rect(
-                    self.screen,
-                    LIGHT_GRAY,
-                    rect,
-                    GRID_LINE_WIDTH,
-                )
+                pygame.draw.rect(self.screen, LIGHT_GRAY, rect, GRID_LINE_WIDTH,)
 
     def _draw_player(self):
         pos = self.env.player.position
@@ -95,25 +83,12 @@ class PygameRenderer:
         y = pos.y * self.cell_size
 
         triangle = [
-            (
-                x + self.cell_size // 2,
-                y + 4,
-            ),
-            (
-                x + 5,
-                y + self.cell_size - 5,
-            ),
-            (
-                x + self.cell_size - 5,
-                y + self.cell_size - 5,
-            ),
+            (x + self.cell_size // 2, y + 4,),
+            (x + 5, y + self.cell_size - 5,),
+            (x + self.cell_size - 5, y + self.cell_size - 5,),
         ]
 
-        pygame.draw.polygon(
-            self.screen,
-            GREEN,
-            triangle,
-        )
+        pygame.draw.polygon(self.screen, GREEN, triangle,)
 
     def _draw_tokens(self):
         radius = max(6, self.cell_size // 4)
@@ -128,37 +103,19 @@ class PygameRenderer:
                 (cx - radius, cy),
             ]
 
-            pygame.draw.polygon(
-                self.screen,
-                YELLOW,
-                diamond,
-            )
+            pygame.draw.polygon(self.screen, YELLOW, diamond)
 
-            pygame.draw.polygon(
-                self.screen,
-                BLACK,
-                diamond,
-                1,
-            )
+            pygame.draw.polygon(self.screen, BLACK, diamond,1,)
 
     def _draw_predator(self):
         pos = self.env.predator.position
 
         color = RED if self.env.predator.awake else DARK_GRAY
 
-        pygame.draw.circle(
-            self.screen,
-            color,
-            self._cell_center(pos),
-            self.cell_size // 3,
-        )
+        pygame.draw.circle( self.screen, color, self._cell_center(pos), self.cell_size // 3,)
 
     def _draw_safe_zone(self):
-        pygame.draw.rect(
-            self.screen,
-            BLACK,
-            self._cell_rect(self.env.safe_zone.position),
-        )
+        pygame.draw.rect(self.screen, BLACK, self._cell_rect(self.env.safe_zone.position),)
 
     def _draw_frame(self):
         if self.env.phase == Phase.CHASE:
@@ -166,19 +123,9 @@ class PygameRenderer:
         else:
             color = BLUE
 
-        frame_rect = pygame.Rect(
-            0,
-            0,
-            self.grid_width_px,
-            self.grid_height_px,
-        )
+        frame_rect = pygame.Rect(0, 0, self.grid_width_px, self.grid_height_px,)
 
-        pygame.draw.rect(
-            self.screen,
-            color,
-            frame_rect,
-            FRAME_WIDTH,
-        )
+        pygame.draw.rect(self.screen, color, frame_rect, FRAME_WIDTH,)
 
     def _draw_info_panel(self):
         panel_y = self.grid_height_px
@@ -186,12 +133,7 @@ class PygameRenderer:
         pygame.draw.rect(
             self.screen,
             WHITE,
-            pygame.Rect(
-                0,
-                panel_y,
-                self.screen_width,
-                INFO_PANEL_HEIGHT,
-            ),
+            pygame.Rect(0, panel_y, self.screen_width, INFO_PANEL_HEIGHT, ),
         )
 
         pygame.draw.line(
@@ -207,38 +149,17 @@ class PygameRenderer:
         tokens_text = f"Tokens: {self.env.player.collected_tokens}"
 
         if self.env.phase == Phase.CHASE:
-            time_text = (
-                f"Chase left: "
-                f"{self.env.remaining_chase_time():.1f}s"
-            )
+            time_text = f"Chase left: "f"{self.env.remaining_chase_time():.1f}s"
         else:
-            time_text = (
-                f"Trial left: "
-                f"{self.env.remaining_trial_time():.1f}s"
-            )
+            time_text = f"Trial left: "f"{self.env.remaining_trial_time():.1f}s"
 
-        left_text = self.font.render(
-            tokens_text,
-            True,
-            BLACK,
-        )
+        left_text = self.font.render(tokens_text,True, BLACK,)
 
-        middle_text = self.small_font.render(
-            f"Phase: {phase_text} | Status: {status_text}",
-            True,
-            BLACK,
-        )
+        middle_text = self.small_font.render(f"Phase: {phase_text} | Status: {status_text}",True, BLACK,)
 
-        right_text = self.font.render(
-            time_text,
-            True,
-            BLACK,
-        )
+        right_text = self.font.render(time_text,True,BLACK,)
 
-        self.screen.blit(
-            left_text,
-            (12, panel_y + 13),
-        )
+        self.screen.blit(left_text,(12, panel_y + 13),)
 
         self.screen.blit(
             middle_text,

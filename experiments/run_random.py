@@ -7,9 +7,7 @@ from visualization import PygameRenderer
 
 def main():
 
-    env = ForagingGame(
-        threat_probability=0.5
-    )
+    env = ForagingGame(threat_probability=0.5)
 
     agent = RandomAgent()
 
@@ -31,10 +29,7 @@ def main():
 
         if done:
 
-            print(
-                f"Status={info['status'].name}"
-                f" Tokens={info['tokens_collected']}"
-            )
+            print(f"Status={info['status'].name}"f" Tokens={info['tokens_collected']}")
 
             state = env.reset()
 

@@ -20,12 +20,6 @@ class SARSAAgent(TabularTDAgent):
         else:
             next_action_index = self.action_index(next_action)
 
-            target = (
-                reward
-                + self.gamma
-                * self.q[next_state][next_action_index]
-            )
+            target = (reward+ self.gamma* self.q[next_state][next_action_index])
 
-        self.q[state][action_index] += (
-            self.alpha * (target - current_q)
-        )
+        self.q[state][action_index] += (self.alpha * (target - current_q))

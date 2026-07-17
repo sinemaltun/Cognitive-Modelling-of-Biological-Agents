@@ -10,7 +10,7 @@ from visualization import PygameRenderer
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = PROJECT_ROOT / "models"
-MODEL_PATH = MODEL_DIR / "sarsa_agent.pkl"
+MODEL_PATH = MODEL_DIR / "sarsa_training_20260717_113746.pkl"
 
 
 def main():

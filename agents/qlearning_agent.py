@@ -19,12 +19,6 @@ class QLearningAgent(TabularTDAgent):
         if done:
             target = reward
         else:
-            target = (
-                reward
-                + self.gamma
-                * np.max(self.q[next_state])
-            )
+            target = (reward + self.gamma * np.max(self.q[next_state]))
 
-        self.q[state][action_index] += (
-            self.alpha * (target - current_q)
-        )
+        self.q[state][action_index] += (self.alpha * (target - current_q))

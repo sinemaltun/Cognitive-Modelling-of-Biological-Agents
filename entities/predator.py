@@ -41,7 +41,4 @@ class Predator:
         and the player is not inside the safe zone.
         """
 
-        return (
-            self.position == player_position
-            and player_position != safe_zone_position
-        )
+        return self.position == player_position and player_position != safe_zone_position

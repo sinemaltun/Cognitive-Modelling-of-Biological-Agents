@@ -40,15 +40,9 @@ class TabularTDAgent(BaseAgent):
             "alpha": self.alpha,
             "gamma": self.gamma,
             "epsilon": self.epsilon,
-            "epsilon_decay": (
-                self.epsilon_decay
-            ),
-            "min_epsilon": (
-                self.min_epsilon
-            ),
-            "q_table_states": (
-                self.q_table_size
-            ),
+            "epsilon_decay": self.epsilon_decay,
+            "min_epsilon": self.min_epsilon,
+            "q_table_states": self.q_table_size,
         }
 
     def choose_action(self, state):

@@ -44,9 +44,7 @@ def build_state_features(env: "ForagingGame",) -> StateFeatures:
 
     nearest_token = min(
         env.tokens,
-        key=lambda token: player.manhattan_distance(
-            token.position
-        ),
+        key=lambda token: player.manhattan_distance(token.position),
     )
 
     return StateFeatures(

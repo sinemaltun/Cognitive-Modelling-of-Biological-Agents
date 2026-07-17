@@ -5,7 +5,14 @@ from pathlib import Path
 
 import numpy as np
 
-from agents.sarsa_agent import SARSAAgent
+from agents.phase_aware_value_iteration_agent import (
+    PhaseAwareValueIterationAgent,
+)
+
+from agents.value_iteration_agent import (
+    ValueIterationAgent,
+)
+
 from environment import ForagingGame
 
 from evaluation import (
@@ -24,22 +31,24 @@ BASE_SEED = 1_000
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Evaluate a trained SARSA agent ""without rendering.")
+    parser = argparse.ArgumentParser(description="Evaluate trained Value Iteration policies without rendering.")
 
     parser.add_argument(
-        "model_path",
+        "forage_model_path",
         type=Path,
-        help=(
-            "Path to the trained SARSA "
-            "pickle file."
-        ),
+        help="Foraging policy pickle file.",
+    )
+
+    parser.add_argument(
+        "chase_model_path",
+        type=Path,
+        help="Chase policy pickle file.",
     )
 
     parser.add_argument(
         "--episodes",
         type=int,
         default=EVALUATION_EPISODES,
-        help="Number of evaluation episodes.",
     )
 
     parser.add_argument(
@@ -66,12 +75,15 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    model_path = args.model_path.resolve()
+    forage_path = args.forage_model_path.resolve()
 
-    if not model_path.exists():
-        raise FileNotFoundError(f"Model does not exist: {model_path}")
+    chase_path = args.chase_model_path.resolve()
 
-    run_id = ("sarsa_evaluation_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
+    for path in (forage_path, chase_path):
+        if not path.exists():
+            raise FileNotFoundError(f"Model does not exist: {path}")
+
+    run_id = "value_iteration_evaluation_" + datetime.now().strftime("%Y%m%d_%H%M%S")
 
     run_dir = (PROJECT_ROOT / "results" / run_id)
 
@@ -82,8 +94,15 @@ def main():
         action_noise=args.action_noise,
     )
 
-    agent = SARSAAgent(epsilon=0.0)
-    agent.load(model_path)
+    forage_agent = ValueIterationAgent()
+    chase_agent = ValueIterationAgent()
+
+    forage_agent.load(forage_path)
+    chase_agent.load(chase_path)
+
+    agent = PhaseAwareValueIterationAgent(forage_agent=forage_agent, chase_agent=chase_agent,)
+
+    total_policy_states = (forage_agent.policy_size + chase_agent.policy_size)
 
     logger = CSVLogger(run_dir)
 
@@ -92,8 +111,13 @@ def main():
         {
             "run_id": run_id,
             "mode": "evaluation",
-            "model_type": "sarsa",
-            "model_path": str(model_path),
+            "model_type": "value_iteration",
+
+            "model_paths": {
+                "foraging": str(forage_path),
+                "chase": str(chase_path),
+            },
+
             "episodes": args.episodes,
             "base_seed": args.base_seed,
 
@@ -106,7 +130,9 @@ def main():
                 "rewards": env.rewards,
             },
 
-            "agent": agent.metadata(),
+            "forage_agent": forage_agent.metadata(),
+
+            "chase_agent": chase_agent.metadata(),
         },
     )
 
@@ -118,11 +144,11 @@ def main():
         random.seed(episode_seed)
         np.random.seed(episode_seed)
 
-        state = env.reset()
+        env.reset()
 
         tracker = EpisodeTracker(
             run_id=run_id,
-            model_type="sarsa",
+            model_type="value_iteration",
             mode="evaluation",
             episode=episode,
             run_seed=args.base_seed,
@@ -135,26 +161,23 @@ def main():
         info = None
 
         while not done:
-            action = agent.greedy_action(state)
+            action = agent.choose_action(env)
 
-            (next_state, reward, done, info,) = env.step(action)
+            (_, reward, done, info,) = env.step(action)
 
-            step_record = tracker.record_step(
-                env=env,
-                reward=reward,
-                done=done,
-                info=info,
+            logger.log_step(
+                tracker.record_step(
+                    env=env,
+                    reward=reward,
+                    done=done,
+                    info=info,
+                )
             )
-
-            logger.log_step(step_record)
-
-            state = next_state
 
         episode_record = tracker.finish(
             env=env,
             info=info,
-            epsilon_used=0.0,
-            q_table_states=agent.q_table_size,
+            policy_states=total_policy_states,
         )
 
         logger.log_episode(episode_record)
@@ -166,10 +189,21 @@ def main():
         {
             "run_id": run_id,
             "mode": "evaluation",
-            "model_type": "sarsa",
-            "model_path": str(model_path),
+            "model_type": "value_iteration",
+
+            "model_paths": {
+                "foraging": str(forage_path),
+                "chase": str(chase_path),
+            },
+
             "base_seed": args.base_seed,
-            "final_agent": agent.metadata(),
+
+            "forage_agent": forage_agent.metadata(),
+
+            "chase_agent": chase_agent.metadata(),
+
+            "combined_policy_states": total_policy_states,
+
             **run_statistics.to_summary_dict(),
         },
     )

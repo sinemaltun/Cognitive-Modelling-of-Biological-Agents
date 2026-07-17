@@ -7,7 +7,4 @@ class Grid:
         self.height = height
 
     def inside(self, position: Position) -> bool:
-        return (
-            0 <= position.x < self.width
-            and 0 <= position.y < self.height
-        )
+        return 0 <= position.x < self.width and 0 <= position.y < self.height

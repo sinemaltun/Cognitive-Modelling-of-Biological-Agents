@@ -65,10 +65,15 @@ class EpisodeRecord:
     mode: str
 
     episode: int
-    seed: int | None
+
+    run_seed: int | None
+    episode_seed: int | None
 
     threat_probability: float
     threat_will_appear: bool
+    threat_trial: bool
+    survived_threat: bool | None
+
     forage_duration: float
     trial_duration: float
     chase_duration: float
@@ -82,6 +87,7 @@ class EpisodeRecord:
     tokens_per_second: float
 
     status: str
+
     survived: bool
     caught: bool
     escaped: bool
@@ -109,7 +115,7 @@ class EpisodeRecord:
     noisy_action_count: int
     noisy_action_fraction: float
 
-    epsilon: float | None
+    epsilon_used: float | None
     q_table_states: int | None
     policy_states: int | None
 
@@ -130,10 +136,15 @@ class TrainingProgressRecord:
     mean_tokens_retained: float
 
     survival_rate: float
+    threat_trial_count: int
+    threat_survival_rate: float | None
+
     caught_rate: float
     escape_rate: float
 
-    epsilon: float
+    epsilon_used: float
+    epsilon_next: float
+
     q_table_states: int
 
     def to_dict(self) -> dict[str, Any]:

@@ -56,42 +56,25 @@ class GridPlanningModel:
         rewards: dict[str, float] | None = None,
     ):
         if width <= 0 or height <= 0:
-            raise ValueError(
-                "Grid dimensions must be positive."
-            )
+            raise ValueError("Grid dimensions must be positive.")
 
         if predator_speed < 1:
-            raise ValueError(
-                "predator_speed must be at least 1."
-            )
+            raise ValueError("predator_speed must be at least 1.")
 
         if not 0.0 <= action_noise <= 1.0:
-            raise ValueError(
-                "action_noise must be between 0 and 1."
-            )
+            raise ValueError("action_noise must be between 0 and 1.")
 
         self.width = width
         self.height = height
 
-        self.safe_x = (
-            width - 1
-            if safe_x is None
-            else safe_x
+        self.safe_x = (width - 1 if safe_x is None else safe_x
         )
 
-        self.safe_y = (
-            height - 1
-            if safe_y is None
-            else safe_y
+        self.safe_y = (height - 1 if safe_y is None else safe_y
         )
 
-        if not (
-                0 <= predator_start_x < width
-                and 0 <= predator_start_y < height
-        ):
-            raise ValueError(
-                "The predator start position must be inside the grid."
-            )
+        if not (0 <= predator_start_x < width and 0 <= predator_start_y < height):
+            raise ValueError("The predator start position must be inside the grid.")
 
         self.predator_start_x = predator_start_x
         self.predator_start_y = predator_start_y
@@ -176,29 +159,20 @@ class GridPlanningModel:
             reward = self.rewards["step"]
 
             if new_token_distance < old_token_distance:
-                reward += self.rewards[
-                    "move_towards_token"
-                ]
+                reward += self.rewards["move_towards_token"]
 
             elif new_token_distance > old_token_distance:
-                reward -= self.rewards[
-                    "move_towards_token"
-                ]
+                reward -= self.rewards["move_towards_token"]
 
             reward += self._foraging_predator_shaping(
                 old_distance=old_predator_distance,
                 new_distance=new_predator_distance,
             )
 
-            collected = (
-                next_x == state.token_x
-                and next_y == state.token_y
-            )
+            collected = (next_x == state.token_x and next_y == state.token_y)
 
             if collected:
-                reward += self.rewards[
-                    "collect_token"
-                ]
+                reward += self.rewards["collect_token"]
 
             transitions.append(
                 Transition(
@@ -235,9 +209,7 @@ class GridPlanningModel:
             )
         )
 
-        for probability, executed_action in (
-            self.executed_actions(intended_action)
-        ):
+        for probability, executed_action in (self.executed_actions(intended_action)):
             player_x, player_y = self._move_player(
                 state.player_x,
                 state.player_y,
@@ -265,36 +237,18 @@ class GridPlanningModel:
             reward = self.rewards["step"]
 
             if new_safe_distance < old_safe_distance:
-                reward += self.rewards[
-                    "move_towards_safe_zone"
-                ]
+                reward += self.rewards["move_towards_safe_zone"]
 
             elif new_safe_distance > old_safe_distance:
-                reward += self.rewards[
-                    "move_away_from_safe_zone"
-                ]
+                reward += self.rewards["move_away_from_safe_zone"]
 
-            if (
-                new_predator_distance
-                < old_predator_distance
-            ):
-                reward += self.rewards[
-                    "move_towards_predator"
-                ]
+            if new_predator_distance< old_predator_distance:
+                reward += self.rewards["move_towards_predator"]
 
-            elif (
-                new_predator_distance
-                > old_predator_distance
-            ):
-                reward += self.rewards.get(
-                    "move_away_from_predator",
-                    0.0,
-                )
+            elif (new_predator_distance > old_predator_distance):
+                reward += self.rewards.get("move_away_from_predator",0.0,)
 
-            reached_safe_zone = (
-                player_x == self.safe_x
-                and player_y == self.safe_y
-            )
+            reached_safe_zone = (player_x == self.safe_x and player_y == self.safe_y)
 
             predator_x = state.predator_x
             predator_y = state.predator_y
@@ -302,9 +256,7 @@ class GridPlanningModel:
             caught = False
 
             if not reached_safe_zone:
-                for _ in range(
-                    self.predator_speed
-                ):
+                for _ in range(self.predator_speed):
                     predator_x, predator_y = (
                         self._move_predator_once(
                             predator_x,
@@ -314,17 +266,12 @@ class GridPlanningModel:
                         )
                     )
 
-                    if (
-                        predator_x == player_x
-                        and predator_y == player_y
-                    ):
+                    if (predator_x == player_x and predator_y == player_y):
                         caught = True
                         break
 
             if reached_safe_zone:
-                reward += self.rewards[
-                    "safe_escape"
-                ]
+                reward += self.rewards["safe_escape"]
 
             elif caught:
                 reward += self.caught_penalty
@@ -339,9 +286,7 @@ class GridPlanningModel:
                         predator_y=predator_y,
                     ),
                     reward=reward,
-                    terminal=(
-                        reached_safe_zone or caught
-                    ),
+                    terminal=(reached_safe_zone or caught),
                 )
             )
 
@@ -356,13 +301,8 @@ class GridPlanningModel:
         for player_x in range(self.width):
             for player_y in range(self.height):
                 for token_x in range(self.width):
-                    for token_y in range(
-                        self.height
-                    ):
-                        if (
-                            player_x == token_x
-                            and player_y == token_y
-                        ):
+                    for token_y in range(self.height):
+                        if player_x == token_x and player_y == token_y:
                             continue
 
                         yield ForagePlanningState(
@@ -380,16 +320,9 @@ class GridPlanningModel:
         """
         for player_x in range(self.width):
             for player_y in range(self.height):
-                for predator_x in range(
-                    self.width
-                ):
-                    for predator_y in range(
-                        self.height
-                    ):
-                        if (
-                            player_x == predator_x
-                            and player_y == predator_y
-                        ):
+                for predator_x in range(self.width):
+                    for predator_y in range(self.height):
+                        if player_x == predator_x and player_y == predator_y:
                             continue
 
                         yield ChasePlanningState(
@@ -405,10 +338,7 @@ class GridPlanningModel:
         next_x = x + dx
         next_y = y + dy
 
-        if (
-            0 <= next_x < self.width
-            and 0 <= next_y < self.height
-        ):
+        if (0 <= next_x < self.width and 0 <= next_y < self.height):
             return next_x, next_y
 
         return x, y
@@ -419,18 +349,11 @@ class GridPlanningModel:
         used by the live ForagingGame during foraging.
         """
 
-        old_potential = 1.0 - math.exp(
-            -old_distance / FORAGING_PREDATOR_TAU
-        )
+        old_potential = 1.0 - math.exp(-old_distance / FORAGING_PREDATOR_TAU)
 
-        new_potential = 1.0 - math.exp(
-            -new_distance / FORAGING_PREDATOR_TAU
-        )
+        new_potential = 1.0 - math.exp(-new_distance / FORAGING_PREDATOR_TAU)
 
-        return (
-                self.rewards["foraging_predator_distance"]
-                * (new_potential - old_potential)
-        )
+        return self.rewards["foraging_predator_distance"] * (new_potential - old_potential)
 
     @staticmethod
     def _move_predator_once(predator_x: int, predator_y: int, player_x: int, player_y: int,) -> tuple[int, int]:

@@ -4,52 +4,59 @@ from pathlib import Path
 
 import numpy as np
 
-from agents import QLearningAgent
-from environment import ForagingGame
+from agents.qlearning_agent import QLearningAgent
 
+from environment import ForagingGame
 from evaluation import (
     CSVLogger,
     EpisodeTracker,
+    RunStatistics,
     TrainingProgressRecord,
     save_run_config,
+    save_run_summary,
 )
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 MODEL_DIR = PROJECT_ROOT / "models"
-MODEL_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
 RESULTS_DIR = PROJECT_ROOT / "results"
-RESULTS_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
 
-RUN_ID = (
-    "qlearning_training_"
-    + datetime.now().strftime("%Y%m%d_%H%M%S")
-)
+MODEL_DIR.mkdir(parents=True, exist_ok=True,)
+
+RESULTS_DIR.mkdir(parents=True, exist_ok=True,)
+
+RUN_ID = ("qlearning_training_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
 
 RUN_DIR = RESULTS_DIR / RUN_ID
-RUN_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
 MODEL_PATH = MODEL_DIR / f"{RUN_ID}.pkl"
 
 EPISODES = 50_000
-
 SEED = 42
+
 PROGRESS_WINDOW = 100
 LOG_STEP_EVERY_N_EPISODES = 500
 
 
-def main():
+def mean_field(records: list, field_name: str,) -> float:
+    if not records:
+        return 0.0
+
+    return sum(getattr(record, field_name) for record in records) / len(records)
+
+
+def calculate_threat_survival_rate(records: list,) -> tuple[int, float | None]:
+    threat_records = [record for record in records if record.threat_trial]
+
+    if not threat_records:
+        return 0, None
+
+    survived_count = sum(record.survived_threat is True for record in threat_records)
+
+    return (len(threat_records), survived_count / len(threat_records),)
+
+
+def main() -> None:
     random.seed(SEED)
     np.random.seed(SEED)
 
@@ -75,48 +82,45 @@ def main():
             "run_id": RUN_ID,
             "mode": "training",
             "model_type": "qlearning",
-            "seed": SEED,
+            "run_seed": SEED,
             "episodes": EPISODES,
             "model_path": str(MODEL_PATH),
 
             "logging": {
                 "progress_window": PROGRESS_WINDOW,
-                "log_step_every_n_episodes": (
-                    LOG_STEP_EVERY_N_EPISODES
-                ),
+                "log_step_every_n_episodes": LOG_STEP_EVERY_N_EPISODES,
             },
 
             "environment": {
                 "width": env.grid.width,
                 "height": env.grid.height,
-                "threat_probability": (
-                    env.threat_probability
-                ),
-                "trial_duration": (
-                    env.trial_duration
-                ),
-                "chase_duration": (
-                    env.chase_duration
-                ),
-                "steps_per_second": (
-                    env.steps_per_second
-                ),
-                "action_noise": (
-                    env.action_noise
-                ),
+
+                "threat_probability": env.threat_probability,
+
+                "trial_duration": env.trial_duration,
+
+                "chase_duration": env.chase_duration,
+
+                "steps_per_second": env.steps_per_second,
+
+                "action_noise":  env.action_noise,
+
                 "rewards": env.rewards,
             },
 
-            "agent": agent.metadata(),
+            "initial_agent": agent.metadata(),
         },
     )
 
     recent_records = []
+    whole_run_statistics = RunStatistics()
 
     print(f"Starting run: {RUN_ID}")
     print(f"Results directory: {RUN_DIR}")
 
     for episode in range(EPISODES):
+        epsilon_used = agent.epsilon
+
         state = env.reset()
 
         tracker = EpisodeTracker(
@@ -124,7 +128,8 @@ def main():
             model_type="qlearning",
             mode="training",
             episode=episode,
-            seed=SEED,
+            run_seed=SEED,
+            episode_seed=None,
         )
 
         tracker.start(env)
@@ -135,12 +140,7 @@ def main():
         while not done:
             action = agent.choose_action(state)
 
-            (
-                next_state,
-                reward,
-                done,
-                info,
-            ) = env.step(action)
+            (next_state,reward,done,info,) = env.step(action)
 
             step_record = tracker.record_step(
                 env=env,
@@ -149,11 +149,7 @@ def main():
                 info=info,
             )
 
-            if (
-                episode
-                % LOG_STEP_EVERY_N_EPISODES
-                == 0
-            ):
+            if episode % LOG_STEP_EVERY_N_EPISODES == 0:
                 logger.log_step(step_record)
 
             agent.update(
@@ -166,14 +162,22 @@ def main():
 
             state = next_state
 
+        if info is None:
+            raise RuntimeError(
+                "The episode ended without "
+                "environment information."
+            )
+
         episode_record = tracker.finish(
             env=env,
             info=info,
-            epsilon=agent.epsilon,
+            epsilon_used=epsilon_used,
             q_table_states=agent.q_table_size,
         )
 
         logger.log_episode(episode_record)
+
+        whole_run_statistics = RunStatistics()
 
         recent_records.append(episode_record)
 
@@ -181,75 +185,137 @@ def main():
             recent_records.pop(0)
 
         agent.decay_epsilon()
+        epsilon_next = agent.epsilon
 
-        if (
-            episode % PROGRESS_WINDOW == 0
-            and recent_records
-        ):
-            window = recent_records
+        should_log_progress = ((episode + 1) % PROGRESS_WINDOW == 0 or episode == EPISODES - 1)
+
+        if (should_log_progress and recent_records):
+            (threat_trial_count,threat_survival_rate,) = calculate_threat_survival_rate(recent_records)
 
             progress = TrainingProgressRecord(
                 run_id=RUN_ID,
                 model_type="qlearning",
 
                 episode=episode,
-                window_size=len(window),
+                window_size=len(recent_records),
 
-                mean_reward=sum(
-                    row.total_reward
-                    for row in window
-                ) / len(window),
+                mean_reward=mean_field(recent_records,"total_reward",),
 
-                mean_tokens_gross=sum(
-                    row.tokens_collected_gross
-                    for row in window
-                ) / len(window),
+                mean_tokens_gross=mean_field(recent_records,"tokens_collected_gross",
+                ),
 
-                mean_tokens_retained=sum(
-                    row.tokens_retained
-                    for row in window
-                ) / len(window),
+                mean_tokens_retained=mean_field(recent_records,"tokens_retained",),
 
-                survival_rate=sum(
-                    row.survived
-                    for row in window
-                ) / len(window),
+                survival_rate=mean_field(recent_records,"survived",),
 
-                caught_rate=sum(
-                    row.caught
-                    for row in window
-                ) / len(window),
+                threat_trial_count=threat_trial_count,
 
-                escape_rate=sum(
-                    row.escaped
-                    for row in window
-                ) / len(window),
+                threat_survival_rate=threat_survival_rate,
 
-                epsilon=agent.epsilon,
+                caught_rate=mean_field(recent_records,"caught",),
+
+                escape_rate=mean_field(recent_records,"escaped",),
+
+                epsilon_used=epsilon_used,
+                epsilon_next=epsilon_next,
+
                 q_table_states=agent.q_table_size,
             )
 
-            logger.log_training_progress(
-                progress
+            logger.log_training_progress(progress)
+
+            threat_text = (
+                f"{threat_survival_rate:.2%}"
+                if threat_survival_rate
+                is not None
+                else "n/a"
             )
 
             print(
-                f"Episode {episode} | "
-                f"Avg Reward "
+                f"Episode "
+                f"{episode + 1}/{EPISODES} | "
+                f"Average reward "
                 f"{progress.mean_reward:.2f} | "
-                f"Survival "
+                f"Overall survival "
                 f"{progress.survival_rate:.2%} | "
-                f"Epsilon {agent.epsilon:.3f}"
+                f"Threat survival "
+                f"{threat_text} | "
+                f"Epsilon used "
+                f"{epsilon_used:.4f} | "
+                f"Next epsilon "
+                f"{epsilon_next:.4f} | "
+                f"Q states "
+                f"{agent.q_table_size}"
             )
 
     agent.save(MODEL_PATH)
 
-    print(
-        "Saved trained Q-learning agent "
-        f"to {MODEL_PATH}"
+    (final_threat_trial_count,final_threat_survival_rate,) = calculate_threat_survival_rate(recent_records)
+
+    save_run_summary(
+        RUN_DIR,
+        {
+            "run_id": RUN_ID,
+            "mode": "training",
+            "model_type": "qlearning",
+            "run_seed": SEED,
+            "episodes_completed": EPISODES,
+            "model_path": str(MODEL_PATH),
+
+            "final_agent": agent.metadata(),
+
+            "whole_run": whole_run_statistics.to_summary_dict(),
+
+            "final_window": {
+                "window_size": len(recent_records),
+
+                "mean_reward": (
+                    mean_field(recent_records,"total_reward",)
+                    if recent_records
+                    else None
+                ),
+
+                "mean_tokens_gross": (
+                    mean_field(recent_records,"tokens_collected_gross",)
+                    if recent_records
+                    else None
+                ),
+
+                "mean_tokens_retained": (
+                    mean_field(recent_records,"tokens_retained",)
+                    if recent_records
+                    else None
+                ),
+
+                "overall_survival_rate": (
+                    mean_field(recent_records,"survived",)
+                    if recent_records
+                    else None
+                ),
+
+                "caught_rate": (
+                    mean_field(recent_records,"caught",)
+                    if recent_records
+                    else None
+                ),
+
+                "escape_rate": (
+                    mean_field(recent_records,"escaped",)
+                    if recent_records
+                    else None
+                ),
+
+                "threat_trial_count": final_threat_trial_count,
+
+                "threat_survival_rate": final_threat_survival_rate,
+            },
+        },
     )
 
+    print("Saved trained Q-learning agent to "f"{MODEL_PATH}")
+
     print(f"Logged results to {RUN_DIR}")
+
     print("Training finished.")
 
 

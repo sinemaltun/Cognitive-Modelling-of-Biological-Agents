@@ -5,7 +5,10 @@ from pathlib import Path
 
 import numpy as np
 
-from agents.sarsa_agent import SARSAAgent
+from agents.qlearning_agent import (
+    QLearningAgent,
+)
+
 from environment import ForagingGame
 
 from evaluation import (
@@ -24,13 +27,13 @@ BASE_SEED = 1_000
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Evaluate a trained SARSA agent ""without rendering.")
+    parser = argparse.ArgumentParser(description="Evaluate a trained Q-learning agent without rendering.")
 
     parser.add_argument(
         "model_path",
         type=Path,
         help=(
-            "Path to the trained SARSA "
+            "Path to the trained Q-learning "
             "pickle file."
         ),
     )
@@ -39,7 +42,6 @@ def parse_arguments():
         "--episodes",
         type=int,
         default=EVALUATION_EPISODES,
-        help="Number of evaluation episodes.",
     )
 
     parser.add_argument(
@@ -69,9 +71,11 @@ def main():
     model_path = args.model_path.resolve()
 
     if not model_path.exists():
-        raise FileNotFoundError(f"Model does not exist: {model_path}")
+        raise FileNotFoundError(
+            f"Model does not exist: {model_path}"
+        )
 
-    run_id = ("sarsa_evaluation_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
+    run_id = ("qlearning_evaluation_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
 
     run_dir = (PROJECT_ROOT / "results" / run_id)
 
@@ -82,7 +86,7 @@ def main():
         action_noise=args.action_noise,
     )
 
-    agent = SARSAAgent(epsilon=0.0)
+    agent = QLearningAgent(epsilon=0.0)
     agent.load(model_path)
 
     logger = CSVLogger(run_dir)
@@ -92,7 +96,7 @@ def main():
         {
             "run_id": run_id,
             "mode": "evaluation",
-            "model_type": "sarsa",
+            "model_type": "qlearning",
             "model_path": str(model_path),
             "episodes": args.episodes,
             "base_seed": args.base_seed,
@@ -122,7 +126,7 @@ def main():
 
         tracker = EpisodeTracker(
             run_id=run_id,
-            model_type="sarsa",
+            model_type="qlearning",
             mode="evaluation",
             episode=episode,
             run_seed=args.base_seed,
@@ -139,14 +143,14 @@ def main():
 
             (next_state, reward, done, info,) = env.step(action)
 
-            step_record = tracker.record_step(
-                env=env,
-                reward=reward,
-                done=done,
-                info=info,
+            logger.log_step(
+                tracker.record_step(
+                    env=env,
+                    reward=reward,
+                    done=done,
+                    info=info,
+                )
             )
-
-            logger.log_step(step_record)
 
             state = next_state
 
@@ -166,7 +170,7 @@ def main():
         {
             "run_id": run_id,
             "mode": "evaluation",
-            "model_type": "sarsa",
+            "model_type": "qlearning",
             "model_path": str(model_path),
             "base_seed": args.base_seed,
             "final_agent": agent.metadata(),

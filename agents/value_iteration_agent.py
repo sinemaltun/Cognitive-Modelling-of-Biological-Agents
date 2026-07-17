@@ -104,23 +104,14 @@ class ValueIterationAgent:
                 }
             )
 
-            print(
-                f"Iteration {iteration} | "
-                f"maximum change={delta:.8f}"
-            )
+            print(f"Iteration {iteration} | "f"maximum change={delta:.8f}")
 
             if converged:
-                print(
-                    "Value Iteration converged "
-                    f"after {iteration} iterations."
-                )
+                print("Value Iteration converged "f"after {iteration} iterations.")
                 break
 
         else:
-            print(
-                "Value Iteration reached the "
-                "maximum iteration count."
-            )
+            print("Value Iteration reached the maximum iteration count.")
 
         self._extract_policy(state_list, transition_function)
 
@@ -161,9 +152,7 @@ class ValueIterationAgent:
         self.policy = {}
 
         for state in states:
-            action_values = {
-                action: self._action_value(state, action, transition_function,) for action in self.actions
-            }
+            action_values = {action: self._action_value(state, action, transition_function,) for action in self.actions}
 
             best_value = max(action_values.values())
 

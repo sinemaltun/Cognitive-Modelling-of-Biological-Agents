@@ -218,6 +218,9 @@ class ForagingGame:
         self.last_token_collected = False
         self.last_chase_started = False
 
+        self.last_chase_start_safe_distance: int | None = None
+        self.last_chase_start_predator_distance: int | None = None
+
         self.last_phase_before = self.phase
 
         return self.get_state()
@@ -307,6 +310,9 @@ class ForagingGame:
         # Reset one-step event flags before processing this action.
         self.last_token_collected = False
         self.last_chase_started = False
+
+        self.last_chase_start_safe_distance = None
+        self.last_chase_start_predator_distance = None
 
         if not self.realtime:
             self.simulated_time += self.dt
@@ -398,9 +404,16 @@ class ForagingGame:
         self._maybe_start_chase()
 
         chase_started = (
-            phase_before == Phase.FORAGING
-            and self.phase == Phase.CHASE
+                phase_before == Phase.FORAGING
+                and self.phase == Phase.CHASE
         )
+
+        if chase_started:
+            chase_features = build_state_features(self)
+
+            self.last_chase_start_safe_distance = chase_features.safe_distance
+
+            self.last_chase_start_predator_distance = chase_features.predator_distance
 
         if self.phase == Phase.CHASE:
             reward += self._move_predator()
@@ -759,5 +772,13 @@ class ForagingGame:
 
             "chase_started_this_step": (
                 self.last_chase_started
+            ),
+            
+            "chase_start_safe_distance": (
+                self.last_chase_start_safe_distance
+            ),
+
+            "chase_start_predator_distance": (
+                self.last_chase_start_predator_distance
             ),
         }
