@@ -10,7 +10,7 @@ from visualization import PygameRenderer
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = PROJECT_ROOT / "models"
-MODEL_PATH = MODEL_DIR / "qlearning_agent.pkl"
+MODEL_PATH = MODEL_DIR / "qlearning_agent.pkl" # SELECT THE MODEL HERE
 
 
 def main():

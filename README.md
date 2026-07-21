@@ -1,187 +1,628 @@
 # Cognitive Modelling of Biological Agents
 
-This project implements a grid-based approach–avoidance task in which an agent collects tokens while managing the risk of a predator becoming active. The environment supports human play, random behavior, temporal-difference learning with SARSA and Q-learning, and model-based planning with Value Iteration.
+A reinforcement learning framework for modelling biologically-inspired decision making under **approach–avoidance conflict**.
 
-The current game uses a 24 × 16 grid with a player, collectible tokens, a predator, and a safe zone. Each trial begins in a foraging phase. If a threat event occurs, the game enters a chase phase and the agent must avoid capture or reach safety.
+This project was developed for the **Cognitive Modelling of Biological Agents** course at the **University of Bonn**. It recreates a grid-based foraging task inspired by the experimental paradigm of Bach *et al.*, in which an agent must balance reward-seeking behaviour against the risk of predation. The framework supports both reinforcement learning agents and human participants, enabling behavioural comparisons under identical experimental conditions.
 
-## Project structure
+---
+
+# Motivation
+
+Many real-world decisions require balancing potential reward against potential danger. This **approach–avoidance conflict** is believed to involve neural mechanisms such as the hippocampus and plays an important role in human decision making.
+
+To investigate this computationally, the project recreates a simplified foraging task in which an agent
+
+- collects reward tokens,
+- avoids an awakening predator,
+- decides when continued foraging becomes too risky,
+- attempts to safely reach a refuge once threatened.
+
+Rather than evaluating agents solely by cumulative reward, the framework also records behavioural measures inspired by cognitive modelling.
+
+---
+
+# Features
+
+- 24 × 16 grid-world environment
+- Two-phase gameplay (Foraging and Chase)
+- Human-controlled baseline
+- Random baseline
+- SARSA
+- Q-Learning
+- Value Iteration
+- Phase-aware Value Iteration
+- Configurable predator probability
+- Optional action noise
+- Real-time and accelerated simulation
+- Behavioural logging
+- Unified CSV / JSON evaluation pipeline
+- Interactive visualization using Pygame
+
+---
+
+# Project Architecture
+
+```
+Experiment
+      │
+      ▼
+   Agent ───────────────┐
+      │                 │
+      ▼                 │
+ Environment            │
+      │                 │
+      ▼                 │
+Visualization           │
+      │                 │
+      ▼                 │
+ Evaluation ◄───────────┘
+```
+
+---
+
+# Repository Structure
 
 ```text
 moba/
-├── agents/
-├── config/
-├── entities/
-├── environment/
-├── experiments/
-├── models/
-├── planning/
-└── visualization/
+│
+├── agents/                # Reinforcement learning algorithms
+├── config/                # Reward configuration
+├── entities/              # Core game objects
+├── environment/           # Grid-world environment
+├── evaluation/            # Logging and evaluation
+├── experiments/           # Executable experiment scripts
+├── planning/              # Value Iteration model
+├── visualization/         # Pygame renderer
+│
+├── models/                # Trained agents (created automatically)
+├── results/               # Experiment outputs (created automatically)
+│
+├── requirements.txt
+└── README.md
 ```
+
+The implementation packages form the framework itself. The `models/` and `results/` directories are created automatically when experiments are executed.
+
+---
+
+# Package Overview
 
 ## `agents/`
 
-Contains all decision-making agents and shared learning infrastructure.
+Implements every decision-making algorithm used by the framework.
 
-- **`base_agent.py`** — Defines the abstract `BaseAgent` interface. Agents implement `choose_action()`, while learning agents may also implement `update()`.
-- **`human_agent.py`** — Converts Pygame keyboard events into environment actions. Arrow keys move the player, Space selects `STAY`, and Escape requests exit.
-- **`random_agent.py`** — Selects a uniformly random action. It is useful as a basic behavioral baseline and for testing the environment.
-- **`tabular_td_agent.py`** — Shared implementation for tabular temporal-difference agents. It owns the Q-table, epsilon-greedy action selection, random tie-breaking, epsilon decay, action indexing, and model serialization.
-- **`sarsa_agent.py`** — Implements the on-policy SARSA update. Its target uses the value of the next action actually chosen by the current policy.
-- **`qlearning_agent.py`** — Implements the off-policy Q-learning update. Its target uses the highest Q-value available in the next state.
-- **`value_iteration_agent.py`** — Implements Value Iteration over an explicit transition model. It repeatedly updates state values until convergence and then extracts a policy.
-- **`phase_aware_value_iteration_agent.py`** — Adapts the two Value Iteration policies to the live game. It uses a nearest-token policy during foraging and a player–predator policy during chase.
-- **`__init__.py`** — Re-exports the agent classes for convenient imports such as `from agents import SARSAAgent`.
+Included agents:
 
-## `config/`
+- HumanAgent
+- RandomAgent
+- SARSAAgent
+- QLearningAgent
+- ValueIterationAgent
+- PhaseAwareValueIterationAgent
 
-Contains centralized experiment configuration.
+Responsibilities:
 
-- **`rewards.py`** — Defines the default reward and reward-shaping values used by the live environment and planning model. These include step cost, token reward, escape and survival rewards, movement shaping, and the gradual penalty for foraging far from the safe zone.
-- **`__init__.py`** — Marks the directory as a Python package.
+- policy execution
+- temporal-difference learning
+- value updates
+- exploration strategies
+- action selection
 
-The live environment copies the default reward dictionary when it is created, so individual experiments can override selected values without changing the global defaults.
-
-## `entities/`
-
-Contains small data-oriented classes representing objects in the game.
-
-- **`position.py`** — Defines the immutable `Position` dataclass and provides movement, tuple conversion, and Manhattan-distance calculations.
-- **`player.py`** — Stores the player position and collected-token count. It provides methods for movement, token collection, and token loss.
-- **`predator.py`** — Stores predator position, wake state, and speed. It implements deterministic Manhattan pursuit and collision detection.
-- **`token.py`** — Defines an immutable token with a grid position.
-- **`safezone.py`** — Defines the safe-zone position and checks whether another position lies inside it.
-- **`__init__.py`** — Re-exports all entity types.
+---
 
 ## `environment/`
 
-Contains the live game environment used by humans and learning agents.
+Implements the complete grid-world simulation.
 
-- **`game.py`** — The central environment implementation. It defines:
-  - the `Phase`, `Status`, and `Action` enums;
-  - the foraging, chase, and terminal phase transitions;
-  - real-time and accelerated simulated-time modes;
-  - player movement, token collection and respawning;
-  - predator wake-up, pursuit, and capture;
-  - reward calculation and shaping;
-  - the Gym-like `reset()` and `step()` interface.
-- **`grid.py`** — Defines the grid dimensions and boundary check used for movement.
-- **`state_features.py`** — Extracts relative spatial features from the live game. `StateFeatures` provides distances to the nearest token, predator, and safe zone. `build_td_state()` converts these features into the hashable tuple used by SARSA and Q-learning.
-- **`__init__.py`** — Re-exports the primary environment classes, enums, and state-building functions.
+Responsibilities include
 
-The public interaction pattern is:
+- player movement
+- predator behaviour
+- reward computation
+- phase transitions
+- episode termination
+- state representation
+
+The environment exposes a Gym-like interface:
 
 ```python
 state = env.reset()
 next_state, reward, done, info = env.step(action)
 ```
 
-For human play and animated demonstrations, use `realtime=True`. For fast TD training, use `realtime=False`; each call to `step()` then advances simulated time by `1 / steps_per_second` seconds.
+---
 
 ## `planning/`
 
-Contains the explicit environment model required by Value Iteration. This is deliberately separate from the mutable live environment.
+Contains the explicit planning model used by Value Iteration.
 
-- **`states.py`** — Defines immutable planning states:
-  - `ForagePlanningState` stores the exact player and current target-token coordinates;
-  - `ChasePlanningState` stores the exact player and predator coordinates.
-- **`model.py`** — Defines `GridPlanningModel` and `Transition`. The model enumerates possible action outcomes, computes rewards and terminal conditions, simulates player and predator movement, and generates the full state sets used by Value Iteration.
-- **`__init__.py`** — Re-exports planning states, transitions, and the model.
+Responsibilities include
 
-The Value Iteration abstraction is intentionally smaller than the complete live game state. During foraging it plans toward one target token at a time; during chase it plans from exact player and predator positions. This avoids enumerating every possible arrangement of all tokens, timers, and accumulated rewards.
+- planning state definitions
+- transition model
+- reward model
+- Value Iteration
+- policy extraction
+
+Unlike the live environment, the planning model separates the problem into independent **Foraging** and **Chase** state spaces, making Value Iteration computationally feasible.
+
+---
+
+## `evaluation/`
+
+Provides a unified evaluation and logging framework.
+
+Outputs include
+
+- step-by-step behaviour logs
+- episode summaries
+- training progress
+- Value Iteration convergence
+- run configuration
+- run summaries
+
+Every experiment uses the same logging infrastructure.
+
+---
 
 ## `visualization/`
 
-Contains the Pygame visualization layer.
+Renders the environment using Pygame.
 
-- **`pygame_renderer.py`** — Draws the grid, player, tokens, predator, safe zone, phase-colored frame, timer, status, and token counter. It reads environment state but does not implement game rules.
-- **`__init__.py`** — Re-exports `PygameRenderer`.
+The renderer is intended for
 
-The renderer follows the experiment-inspired visual language: a green triangular player, yellow diamond-shaped tokens, a gray or red predator, a black safe zone, and a blue or red frame depending on the phase.
+- demonstrations
+- debugging
+- observing learned behaviour
+- human-controlled experiments
+
+---
 
 ## `experiments/`
 
-Contains executable scripts that assemble environments, agents, models, and renderers.
+Contains executable entry points.
 
-### Interactive and baseline runs
+Typical scripts include
 
-- **`run_human.py`** — Runs the real-time environment with keyboard control.
-- **`run_random.py`** — Runs and displays the random-agent baseline.
+- training reinforcement learning agents
+- evaluating trained agents
+- replaying trained agents
+- running human participants
 
-### TD training and playback
+---
 
-- **`train_sarsa.py`** — Trains SARSA in accelerated simulated time and saves its Q-table to `models/sarsa_agent.pkl`.
-- **`run_trained_sarsa.py`** — Loads the saved SARSA Q-table and displays its greedy policy in real time.
-- **`train_qlearning.py`** — Trains Q-learning in accelerated simulated time and saves its Q-table to `models/qlearning_agent.pkl`.
-- **`run_trained_qlearning.py`** — Loads and visualizes the greedy Q-learning policy.
+# Learning Approaches
 
-### Value Iteration planning and playback
+## SARSA
 
-- **`train_value_iteration.py`** — Builds the explicit planning model, trains separate foraging and chase policies, and saves serial-numbered model pairs.
-- **`run_trained_value_iteration.py`** — Loads a selected foraging/chase model pair and runs the phase-aware Value Iteration agent in the live environment.
-- **`__init__.py`** — Marks the directory as a package so scripts can be run with Python's `-m` option.
+SARSA is an **on-policy** temporal-difference algorithm.
 
-Run scripts from the project root, for example:
+The agent updates its Q-values using the action actually selected by its current ε-greedy policy.
 
-```bash
-python -m experiments.run_human
-python -m experiments.train_sarsa
-python -m experiments.run_trained_sarsa
-python -m experiments.train_qlearning
-python -m experiments.run_trained_qlearning
-python -m experiments.train_value_iteration
-python -m experiments.run_trained_value_iteration
+---
+
+## Q-Learning
+
+Q-Learning is an **off-policy** temporal-difference algorithm.
+
+Updates assume the best available action will be taken in the next state, independent of exploration.
+
+---
+
+## Value Iteration
+
+Value Iteration is a **model-based** planning algorithm.
+
+Rather than learning through sampled episodes, it uses an explicit transition model to compute an optimal policy over the planning state space.
+
+Separate policies are learned for
+
+- Foraging
+- Chase
+
+and combined during gameplay by the `PhaseAwareValueIterationAgent`.
+
+---
+
+# Evaluation Framework
+
+The framework records both traditional reinforcement learning metrics and behavioural statistics.
+
+Examples include
+
+- cumulative reward
+- collected tokens
+- survival rate
+- threat survival rate
+- successful escapes
+- episode duration
+- noisy actions
+- chase onset statistics
+- movement behaviour
+
+Results are exported as CSV files together with machine-readable JSON summaries.
+
+---
+
+# Generated Outputs
+
+Running experiments automatically creates
+
+```text
+models/
+results/
 ```
 
 ## `models/`
 
-Stores serialized learned Q-tables and planned policies.
+Contains trained reinforcement learning models.
 
-Current examples include:
+Examples:
 
-- `sarsa_agent.pkl`
-- `value_iteration_forage_001.pkl`
-- `value_iteration_chase_001.pkl`
+```text
+sarsa_training_<timestamp>.pkl
+qlearning_training_<timestamp>.pkl
 
-Model files are Python pickle files. Only load pickle files from trusted sources. Q-learning playback expects `qlearning_agent.pkl`, which is created after running its training script.
+value_iteration_training_<timestamp>_forage.pkl
+value_iteration_training_<timestamp>_chase.pkl
+```
 
-## Learning approaches
+---
 
-### SARSA
+## `results/`
 
-SARSA is an on-policy temporal-difference method. It learns from sampled interaction and updates the value of the current state/action pair using the next action actually chosen by its epsilon-greedy policy. Exploration is therefore reflected in the learned values.
+Each experiment creates its own timestamped directory.
 
-### Q-learning
+Typical contents:
 
-Q-learning is an off-policy temporal-difference method. It also learns from sampled interaction, but its update assumes the best-valued action will be selected in the next state, independently of the exploratory action actually taken.
+```text
+run_config.json
+run_summary.json
+episodes.csv
+steps.csv
+training_progress.csv
+value_iteration_progress.csv
+```
 
-### Value Iteration
+depending on the experiment.
 
-Value Iteration is model-based. Instead of learning transition consequences only through sampled episodes, it uses `GridPlanningModel` to evaluate all modeled outcomes for every state/action pair. Separate policies are computed for foraging and chase and joined by `PhaseAwareValueIterationAgent` at runtime.
+---
+
+# Running the Project
 
 ## Installation
 
-Python 3.10 or newer is recommended because the project uses modern union type syntax such as `str | Path`.
+Install the dependencies:
 
-Install the external dependencies:
+```bash
+python -m pip install -r requirements.txt
+```
+
+or
 
 ```bash
 python -m pip install numpy pygame
 ```
 
-Then run commands from the directory containing `agents/`, `environment/`, and the other project packages.
+---
 
-## Controls
+## Important
 
-During human play:
+Run all experiment scripts **from the project root directory**.
 
-- Arrow keys: move up, right, down, or left
-- Space: stay in place
-- Escape or window close button: exit
+Example:
 
-## Notes and current limitations
+```bash
+cd path/to/moba
+```
 
-- The live game and the Value Iteration planning model use related but not completely identical state representations.
-- Value Iteration's foraging policy targets one nearest token at a time rather than modeling all token placements simultaneously.
-- The chase planning model uses a fixed capture penalty, whereas the live game removes the reward value of collected tokens when capture occurs.
-- Value Iteration over the full 24 × 16 position combinations is computationally more expensive than running a single TD episode.
-- Saved models depend on the state representation, action order, reward design, and environment dynamics used during training. Retrain models after changing those elements.
+Run scripts as Python modules:
+
+```bash
+python -m experiments.<script_name>
+```
+
+instead of running the script file directly:
+
+```bash
+python experiments/<script_name>.py
+```
+
+The module-based form works on **Windows, Linux and macOS** and ensures that all project packages are imported correctly.
+
+---
+
+# Human Experiments
+
+Run a human-controlled experiment while recording the same behavioural metrics used for the reinforcement learning agents.
+
+```bash
+python -m experiments.run_human
+```
+
+Optional arguments include:
+
+```text
+--participant-id
+--episodes
+--threat-probability
+--action-noise
+```
+
+---
+
+# Training
+
+Training creates a new agent from scratch, learns (or computes) its policy, and saves the resulting model together with training statistics.
+
+The generated model filenames contain a timestamp indicating when the training run was performed. Throughout this README, `<timestamp>` denotes this value (for example, `20260721_173106`).
+
+## SARSA
+
+```bash
+python -m experiments.train_sarsa
+```
+
+Creates
+
+```text
+models/
+    sarsa_training_<timestamp>.pkl
+
+results/
+    sarsa_training_<timestamp>/
+```
+
+---
+
+## Q-Learning
+
+```bash
+python -m experiments.train_qlearning
+```
+
+Creates
+
+```text
+models/
+    qlearning_training_<timestamp>.pkl
+
+results/
+    qlearning_training_<timestamp>/
+```
+
+---
+
+## Value Iteration
+
+```bash
+python -m experiments.train_value_iteration
+```
+
+Creates
+
+```text
+models/
+    value_iteration_training_<timestamp>_forage.pkl
+    value_iteration_training_<timestamp>_chase.pkl
+
+results/
+    value_iteration_training_<timestamp>/
+```
+
+---
+
+# Running Trained Agents
+
+These scripts load a previously trained model and visualise its behaviour in the Pygame environment. No further learning takes place during these runs.
+
+The playback scripts currently use model paths defined directly inside each script. Before running one of the scripts below, update the corresponding model path(s) so that they point to an existing file in the `models/` directory.
+
+## SARSA
+
+Open
+
+```text
+experiments/run_trained_sarsa.py
+```
+
+and set the model path, for example:
+
+```python
+MODEL_PATH = MODEL_DIR / "sarsa_training_20260721_173106.pkl"
+```
+
+Then run:
+
+```bash
+python -m experiments.run_trained_sarsa
+```
+
+---
+
+## Q-Learning
+
+Open
+
+```text
+experiments/run_trained_qlearning.py
+```
+
+and set the model path, for example:
+
+```python
+MODEL_PATH = MODEL_DIR / "qlearning_training_20260721_173106.pkl"
+```
+
+Then run:
+
+```bash
+python -m experiments.run_trained_qlearning
+```
+
+---
+
+## Value Iteration
+
+Open
+
+```text
+experiments/run_trained_value_iteration.py
+```
+
+and set both model paths, for example:
+
+```python
+FORAGE_MODEL_PATH = (
+    MODEL_DIR
+    / "value_iteration_training_20260721_173106_forage.pkl"
+)
+
+CHASE_MODEL_PATH = (
+    MODEL_DIR
+    / "value_iteration_training_20260721_173106_chase.pkl"
+)
+```
+
+Both files should come from the same Value Iteration training run.
+
+Then run:
+
+```bash
+python -m experiments.run_trained_value_iteration
+```
+
+---
+
+# Evaluation
+
+Evaluation loads a trained model, disables further learning and exploration, executes a fixed number of evaluation episodes, and records behavioural statistics.
+
+Replace `<timestamp>` with the timestamp of the model you wish to evaluate (for example, `20260721_173106`).
+
+Each evaluation script supports additional command-line arguments. Use `--help` to display all available options.
+
+## SARSA
+
+Display the available options:
+
+```bash
+python -m experiments.evaluate_sarsa --help
+```
+
+Evaluate a trained SARSA model:
+
+```bash
+python -m experiments.evaluate_sarsa models/sarsa_training_<timestamp>.pkl
+```
+
+Example:
+
+```bash
+python -m experiments.evaluate_sarsa models/sarsa_training_20260721_173106.pkl
+```
+
+---
+
+## Q-Learning
+
+Display the available options:
+
+```bash
+python -m experiments.evaluate_qlearning --help
+```
+
+Evaluate a trained Q-Learning model:
+
+```bash
+python -m experiments.evaluate_qlearning models/qlearning_training_<timestamp>.pkl
+```
+
+Example:
+
+```bash
+python -m experiments.evaluate_qlearning models/qlearning_training_20260721_173106.pkl
+```
+
+---
+
+## Value Iteration
+
+Display the available options:
+
+```bash
+python -m experiments.evaluate_value_iteration --help
+```
+
+Evaluate a trained Value Iteration agent by providing both the foraging and chase models from the same training run:
+
+```bash
+python -m experiments.evaluate_value_iteration models/value_iteration_training_<timestamp>_forage.pkl models/value_iteration_training_<timestamp>_chase.pkl
+```
+
+Example:
+
+```bash
+python -m experiments.evaluate_value_iteration models/value_iteration_training_20260721_173106_forage.pkl models/value_iteration_training_20260721_173106_chase.pkl
+```
+
+The commands above use forward slashes because they work on Windows, Linux and macOS. On Windows, backslashes may also be used if preferred.
+
+Each evaluation creates a new timestamped directory inside
+
+```text
+results/
+```
+
+containing
+
+```text
+run_config.json
+run_summary.json
+episodes.csv
+steps.csv
+```
+
+---
+
+# Typical Workflow
+
+```
+Train Agent
+      │
+      ▼
+Saved Model
+      │
+      ├────────► Run Trained Agent
+      │               │
+      │               ▼
+      │        Observe Behaviour
+      │
+      └────────► Evaluate Agent
+                      │
+                      ▼
+             CSV / JSON Results
+```
+
+---
+
+# Future Extensions
+
+The framework is intentionally modular and can be extended with
+
+- Deep Reinforcement Learning
+- Partial Observability
+- Noisy Perception Models
+- Human Behavioural Model Fitting
+- Alternative reward structures
+- Additional biologically-inspired decision models
+
+---
+
+# Authors
+
+**Adam Krupinski**
+
+**Sinem Altun**
+
+University of Bonn

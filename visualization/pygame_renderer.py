@@ -32,7 +32,7 @@ class PygameRenderer:
         self.screen_width = self.grid_width_px
         self.screen_height = self.grid_height_px + INFO_PANEL_HEIGHT
 
-        self.screen = pygame.display.set_mode(self.screen_width, self.screen_height)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
 
         pygame.display.set_caption("Foraging Threat Task")
 

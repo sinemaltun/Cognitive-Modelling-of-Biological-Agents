@@ -18,9 +18,9 @@ MODEL_DIR = PROJECT_ROOT / "models"
 
 SERIAL = 1
 
-FORAGE_MODEL_PATH = (MODEL_DIR / f"value_iteration_forage_{SERIAL:03d}.pkl")
+FORAGE_MODEL_PATH = (MODEL_DIR / "value_iteration_training_20260721_175836_forage.pkl") # SELECT THE MODEL HERE
 
-CHASE_MODEL_PATH = (MODEL_DIR / f"value_iteration_chase_{SERIAL:03d}.pkl")
+CHASE_MODEL_PATH = (MODEL_DIR / "value_iteration_training_20260721_175836_chase.pkl") # SELECT THE MODEL HERE
 
 
 def main():
