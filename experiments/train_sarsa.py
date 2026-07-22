@@ -61,17 +61,16 @@ def main() -> None:
     np.random.seed(SEED)
 
     env = ForagingGame(
-        threat_probability=0.8,
+        threat_probability=0.5,
         realtime=False,
         steps_per_second=10,
-        action_noise=0.0,
+        action_noise=0.2,
     )
 
     agent = SARSAAgent(
         alpha=0.15,
         gamma=0.95,
         epsilon=1.0,
-        min_epsilon=0.05,
     )
 
     logger = CSVLogger(RUN_DIR)

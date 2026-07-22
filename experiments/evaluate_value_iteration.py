@@ -54,7 +54,7 @@ def parse_arguments():
     parser.add_argument(
         "--threat-probability",
         type=float,
-        default=0.2,
+        default=0.5,
     )
 
     parser.add_argument(
