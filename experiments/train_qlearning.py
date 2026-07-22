@@ -61,7 +61,7 @@ def main() -> None:
     np.random.seed(SEED)
 
     env = ForagingGame(
-        threat_probability=0.7,
+        threat_probability=0.8,
         realtime=False,
         steps_per_second=10,
         action_noise=0.0,

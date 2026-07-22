@@ -10,14 +10,15 @@ from visualization import PygameRenderer
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = PROJECT_ROOT / "models"
-MODEL_PATH = MODEL_DIR / "sarsa_training_20260721_173106.pkl" # SELECT THE MODEL HERE
+MODEL_PATH = MODEL_DIR / "sarsa_training_20260722_173152.pkl" # SELECT THE MODEL HERE
 
 
 def main():
 
     env = ForagingGame(
-        threat_probability=0.5,
+        threat_probability=0.8,
         realtime=True,
+        action_noise=0.0,
     )
 
     renderer = PygameRenderer(env)

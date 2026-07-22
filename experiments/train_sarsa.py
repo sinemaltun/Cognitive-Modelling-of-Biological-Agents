@@ -70,7 +70,8 @@ def main() -> None:
     agent = SARSAAgent(
         alpha=0.15,
         gamma=0.95,
-        epsilon=0.9,
+        epsilon=1.0,
+        min_epsilon=0.05,
     )
 
     logger = CSVLogger(RUN_DIR)

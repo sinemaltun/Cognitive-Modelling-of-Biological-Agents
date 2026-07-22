@@ -8,7 +8,7 @@ REWARDS = {
 
     # Foraging shaping
     "move_towards_token": 0.5,
-    "foraging_predator_distance": 3.0,
+    "foraging_predator_distance": 3.0, # Controls strength of the shaping
 
     # Chase shaping
     "move_towards_predator": -1.0,
@@ -19,5 +19,5 @@ REWARDS = {
 }
 
 # Tau in the exponential predator-distance potential.
-# Larger values make the predator influence extend farther.
+# Controls range of the shaping: Larger values make the predator influence extend farther.
 FORAGING_PREDATOR_TAU = 8.0
