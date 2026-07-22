@@ -5,7 +5,7 @@ from environment import Action
 
 
 class HumanAgent(BaseAgent):
-    def __init__(self, movement_interval_ms: int = 120):
+    def __init__(self, movement_interval_ms: int = 100):
         if movement_interval_ms <= 0:
             raise ValueError(
                 "movement_interval_ms must be greater than zero."
