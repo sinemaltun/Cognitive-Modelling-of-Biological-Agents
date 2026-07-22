@@ -72,65 +72,39 @@ class ForagingGame:
         action_noise: float = 0.0,
     ):
         if width <= 0:
-            raise ValueError(
-                "width must be greater than zero."
-            )
+            raise ValueError("width must be greater than zero.")
 
         if height <= 0:
-            raise ValueError(
-                "height must be greater than zero."
-            )
+            raise ValueError("height must be greater than zero.")
 
         if trial_duration <= 0:
-            raise ValueError(
-                "trial_duration must be greater than zero."
-            )
+            raise ValueError("trial_duration must be greater than zero.")
 
         if chase_duration <= 0:
-            raise ValueError(
-                "chase_duration must be greater than zero."
-            )
+            raise ValueError("chase_duration must be greater than zero.")
 
         if min_forage_time < 0:
-            raise ValueError(
-                "min_forage_time cannot be negative."
-            )
+            raise ValueError("min_forage_time cannot be negative.")
 
         if max_forage_time < min_forage_time:
-            raise ValueError(
-                "max_forage_time must be greater than or "
-                "equal to min_forage_time."
-            )
+            raise ValueError("max_forage_time must be greater than or equal to min_forage_time.")
 
         if initial_tokens < 1:
-            raise ValueError(
-                "initial_tokens must be at least one."
-            )
+            raise ValueError("initial_tokens must be at least one.")
 
         if not 0.0 <= threat_probability <= 1.0:
-            raise ValueError(
-                "threat_probability must be between 0 and 1."
-            )
+            raise ValueError("threat_probability must be between 0 and 1.")
 
         if predator_speed < 1:
-            raise ValueError(
-                "predator_speed must be at least one."
-            )
+            raise ValueError("predator_speed must be at least one.")
 
         if steps_per_second <= 0:
-            raise ValueError(
-                "steps_per_second must be greater than zero."
-            )
+            raise ValueError("steps_per_second must be greater than zero.")
 
         if not 0.0 <= action_noise <= 1.0:
-            raise ValueError(
-                "action_noise must be between 0 and 1."
-            )
+            raise ValueError("action_noise must be between 0 and 1.")
 
-        self.grid = Grid(
-            width=width,
-            height=height,
-        )
+        self.grid = Grid(width=width,height=height,)
 
         self.trial_duration = trial_duration
         self.chase_duration = chase_duration
@@ -195,11 +169,7 @@ class ForagingGame:
         )
 
         self.player = Player(
-            position=self._random_empty_position(
-                forbidden={
-                    self.safe_zone.position,
-                    self.predator.position,
-                }
+            position=self._random_empty_position(forbidden={self.safe_zone.position, self.predator.position,}
             )
         )
 
@@ -244,26 +214,15 @@ class ForagingGame:
         return self.phase_simulated_time
 
     def remaining_trial_time(self) -> float:
-        return max(
-            0.0,
-            self.trial_duration
-            - self.elapsed_time(),
-        )
+        return max(0.0, self.trial_duration - self.elapsed_time(),)
 
     def remaining_chase_time(self) -> float:
         if self.phase != Phase.CHASE:
             return 0.0
 
-        return max(
-            0.0,
-            self.chase_duration
-            - self.phase_elapsed_time(),
-        )
+        return max(0.0,self.chase_duration - self.phase_elapsed_time(),)
 
-    def step(
-        self,
-        action: Action | int,
-    ):
+    def step(self, action: Action | int,):
         """
         Advance the environment by one action.
 
@@ -282,28 +241,19 @@ class ForagingGame:
                 and behavioral logging.
         """
         if self.phase == Phase.FINISHED:
-            return (
-                self.get_state(),
-                0.0,
-                True,
-                self._info(),
-            )
+            return (self.get_state(), 0.0, True, self._info(),)
 
         if isinstance(action, int):
             action = Action(action)
 
         if not isinstance(action, Action):
-            raise TypeError(
-                "action must be an Action or integer action value."
-            )
+            raise TypeError("action must be an Action or integer action value.")
 
         phase_before = self.phase
 
         intended_action = action
 
-        executed_action = self._execute_action(
-            intended_action
-        )
+        executed_action = self._execute_action(intended_action)
 
         old_position = self.player.position
 
@@ -324,10 +274,7 @@ class ForagingGame:
 
         self._move_player(executed_action)
 
-        moved = (
-            self.player.position
-            != old_position
-        )
+        moved = (self.player.position != old_position)
 
         new_features = build_state_features(self)
 
@@ -336,21 +283,11 @@ class ForagingGame:
         # -----------------------------------------------------
 
         if phase_before == Phase.FORAGING:
-            if (
-                new_features.token_distance
-                < old_features.token_distance
-            ):
-                reward += self.rewards[
-                    "move_towards_token"
-                ]
+            if new_features.token_distance < old_features.token_distance:
+                reward += self.rewards["move_towards_token"]
 
-            elif (
-                new_features.token_distance
-                > old_features.token_distance
-            ):
-                reward -= self.rewards[
-                    "move_towards_token"
-                ]
+            elif new_features.token_distance > old_features.token_distance:
+                reward -= self.rewards["move_towards_token"]
 
             reward += self._foraging_predator_shaping(
                 old_distance=(
@@ -366,47 +303,23 @@ class ForagingGame:
         # -----------------------------------------------------
 
         elif phase_before == Phase.CHASE:
-            if (
-                new_features.predator_distance
-                < old_features.predator_distance
-            ):
-                reward += self.rewards[
-                    "move_towards_predator"
-                ]
+            if new_features.predator_distance < old_features.predator_distance:
+                reward += self.rewards["move_towards_predator"]
 
-            elif (
-                new_features.predator_distance
-                > old_features.predator_distance
-            ):
-                reward += self.rewards.get(
-                    "move_away_from_predator",
-                    0.0,
-                )
+            elif new_features.predator_distance > old_features.predator_distance:
+                reward += self.rewards.get("move_away_from_predator",0.0,)
 
-            if (
-                new_features.safe_distance
-                < old_features.safe_distance
-            ):
-                reward += self.rewards[
-                    "move_towards_safe_zone"
-                ]
+            if new_features.safe_distance < old_features.safe_distance:
+                reward += self.rewards["move_towards_safe_zone"]
 
-            elif (
-                new_features.safe_distance
-                > old_features.safe_distance
-            ):
-                reward += self.rewards[
-                    "move_away_from_safe_zone"
-                ]
+            elif new_features.safe_distance > old_features.safe_distance:
+                reward += self.rewards["move_away_from_safe_zone"]
 
         reward += self._collect_token_if_present()
 
         self._maybe_start_chase()
 
-        chase_started = (
-                phase_before == Phase.FORAGING
-                and self.phase == Phase.CHASE
-        )
+        chase_started = phase_before == Phase.FORAGING and self.phase == Phase.CHASE
 
         if chase_started:
             chase_features = build_state_features(self)
@@ -426,25 +339,15 @@ class ForagingGame:
         self.last_intended_action = intended_action
         self.last_executed_action = executed_action
 
-        self.last_action_was_noisy = (
-            intended_action != executed_action
-        )
+        self.last_action_was_noisy = intended_action != executed_action
 
         self.last_move_succeeded = moved
         self.last_chase_started = chase_started
         self.last_phase_before = phase_before
 
-        return (
-            self.get_state(),
-            reward,
-            done,
-            self._info(),
-        )
+        return (self.get_state(), reward, done, self._info(),)
 
-    def _execute_action(
-        self,
-        intended_action: Action,
-    ) -> Action:
+    def _execute_action(self, intended_action: Action,) -> Action:
         """
         Apply motor noise to an intended action.
 
@@ -465,10 +368,7 @@ class ForagingGame:
 
         return random.choice(alternatives)
 
-    def _move_player(
-        self,
-        action: Action,
-    ) -> None:
+    def _move_player(self, action: Action,) -> None:
         """
         Apply an executed action to the player.
 
@@ -477,10 +377,7 @@ class ForagingGame:
         """
         dx, dy = ACTION_DELTAS[action]
 
-        new_position = self.player.position.moved(
-            dx,
-            dy,
-        )
+        new_position = self.player.position.moved(dx,dy,)
 
         if self.grid.inside(new_position):
             self.player.move_to(new_position)
@@ -507,11 +404,7 @@ class ForagingGame:
 
         return 0.0
 
-    def _foraging_predator_shaping(
-        self,
-        old_distance: int,
-        new_distance: int,
-    ) -> float:
+    def _foraging_predator_shaping(self, old_distance: int,new_distance: int,) -> float:
         """
         Reward movement away from the sleeping predator.
 
@@ -519,31 +412,11 @@ class ForagingGame:
         most when the player is close to the predator and has
         little effect once the player is already far away.
         """
-        old_potential = (
-            1.0
-            - math.exp(
-                -old_distance
-                / FORAGING_PREDATOR_TAU
-            )
-        )
+        old_potential = (1.0 - math.exp( -old_distance / FORAGING_PREDATOR_TAU))
 
-        new_potential = (
-            1.0
-            - math.exp(
-                -new_distance
-                / FORAGING_PREDATOR_TAU
-            )
-        )
+        new_potential = (1.0 - math.exp(-new_distance / FORAGING_PREDATOR_TAU))
 
-        return (
-            self.rewards[
-                "foraging_predator_distance"
-            ]
-            * (
-                new_potential
-                - old_potential
-            )
-        )
+        return self.rewards["foraging_predator_distance"] * (new_potential - old_potential)
 
     def _maybe_start_chase(self) -> None:
         """
@@ -553,15 +426,9 @@ class ForagingGame:
         if self.phase != Phase.FORAGING:
             return
 
-        forage_time_over = (
-            self.phase_elapsed_time()
-            >= self.forage_duration
-        )
+        forage_time_over = self.phase_elapsed_time()>= self.forage_duration
 
-        if (
-            forage_time_over
-            and self.threat_will_appear
-        ):
+        if forage_time_over and self.threat_will_appear:
             self.phase = Phase.CHASE
             self.status = Status.RUNNING
 
@@ -578,22 +445,14 @@ class ForagingGame:
         tokens is cancelled.
         """
         for _ in range(self.predator.speed):
-            self.predator.move_towards(
-                self.player.position
-            )
+            self.predator.move_towards(self.player.position)
 
-            caught = self.predator.catches(
-                self.player.position,
-                self.safe_zone.position,
-            )
+            caught = self.predator.catches(self.player.position, self.safe_zone.position,)
 
             if not caught:
                 continue
 
-            lost_token_reward = (
-                self.player.collected_tokens
-                * self.rewards["collect_token"]
-            )
+            lost_token_reward = (self.player.collected_tokens * self.rewards["collect_token"])
 
             self.player.lose_tokens()
 
@@ -611,31 +470,19 @@ class ForagingGame:
         if self.status == Status.CAUGHT:
             return 0.0
 
-        if (
-            self.phase == Phase.CHASE
-            and self.safe_zone.contains(
-                self.player.position
-            )
-        ):
+        if self.phase == Phase.CHASE and self.safe_zone.contains(self.player.position):
             self.status = Status.SAFE
             self.phase = Phase.FINISHED
 
             return self.rewards["safe_escape"]
 
-        if (
-            self.phase == Phase.CHASE
-            and self.phase_elapsed_time()
-            >= self.chase_duration
-        ):
+        if self.phase == Phase.CHASE and self.phase_elapsed_time() >= self.chase_duration:
             self.status = Status.SAFE
             self.phase = Phase.FINISHED
 
             return self.rewards["safe_escape"]
 
-        if (
-            self.elapsed_time()
-            >= self.trial_duration
-        ):
+        if self.elapsed_time() >= self.trial_duration:
             self.status = Status.TIMEOUT
             self.phase = Phase.FINISHED
 
@@ -643,10 +490,7 @@ class ForagingGame:
 
         return 0.0
 
-    def spawn_tokens(
-        self,
-        amount: int = 1,
-    ) -> None:
+    def spawn_tokens(self, amount: int = 1,) -> None:
         """
         Spawn tokens in distinct currently unoccupied cells.
         """
@@ -661,33 +505,19 @@ class ForagingGame:
             for token in self.tokens
         )
 
-        available_cells = (
-            self.grid.width
-            * self.grid.height
-            - len(forbidden)
-        )
+        available_cells = self.grid.width * self.grid.height - len(forbidden)
 
         if amount > available_cells:
-            raise ValueError(
-                "Not enough empty cells to spawn "
-                f"{amount} token(s)."
-            )
+            raise ValueError("Not enough empty cells to spawn " f"{amount} token(s).")
 
         for _ in range(amount):
-            position = self._random_empty_position(
-                forbidden
-            )
+            position = self._random_empty_position(forbidden)
 
-            self.tokens.append(
-                Token(position)
-            )
+            self.tokens.append(Token(position))
 
             forbidden.add(position)
 
-    def _random_empty_position(
-        self,
-        forbidden: set[Position],
-    ) -> Position:
+    def _random_empty_position(self,forbidden: set[Position],) -> Position:
         """
         Return a random position that is not forbidden.
         """
@@ -718,67 +548,37 @@ class ForagingGame:
 
             "status": self.status,
 
-            "tokens_collected": (
-                self.player.collected_tokens
-            ),
+            "tokens_collected": self.player.collected_tokens,
 
             "elapsed_time": self.elapsed_time(),
 
-            "phase_elapsed_time": (
-                self.phase_elapsed_time()
-            ),
+            "phase_elapsed_time": self.phase_elapsed_time(),
 
-            "remaining_trial_time": (
-                self.remaining_trial_time()
-            ),
+            "remaining_trial_time": self.remaining_trial_time(),
 
-            "remaining_chase_time": (
-                self.remaining_chase_time()
-            ),
+            "remaining_chase_time": self.remaining_chase_time(),
 
-            "threat_probability": (
-                self.threat_probability
-            ),
+            "threat_probability": self.threat_probability,
 
-            "threat_will_appear": (
-                self.threat_will_appear
-            ),
+            "threat_will_appear": self.threat_will_appear,
 
-            "forage_duration": (
-                self.forage_duration
-            ),
+            "forage_duration": self.forage_duration,
 
             "realtime": self.realtime,
 
-            "intended_action": (
-                self.last_intended_action
-            ),
+            "intended_action": self.last_intended_action,
 
-            "executed_action": (
-                self.last_executed_action
-            ),
+            "executed_action": self.last_executed_action,
 
-            "action_was_noisy": (
-                self.last_action_was_noisy
-            ),
+            "action_was_noisy": self.last_action_was_noisy,
 
-            "moved": (
-                self.last_move_succeeded
-            ),
+            "moved": self.last_move_succeeded,
 
-            "token_collected_this_step": (
-                self.last_token_collected
-            ),
+            "token_collected_this_step": self.last_token_collected,
 
-            "chase_started_this_step": (
-                self.last_chase_started
-            ),
+            "chase_started_this_step": self.last_chase_started,
             
-            "chase_start_safe_distance": (
-                self.last_chase_start_safe_distance
-            ),
+            "chase_start_safe_distance": self.last_chase_start_safe_distance,
 
-            "chase_start_predator_distance": (
-                self.last_chase_start_predator_distance
-            ),
+            "chase_start_predator_distance": self.last_chase_start_predator_distance,
         }
