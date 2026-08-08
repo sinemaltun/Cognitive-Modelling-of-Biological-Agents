@@ -8,7 +8,7 @@ REWARDS = {
 
     # Foraging shaping
     "move_towards_token": 0.5,
-    "foraging_predator_distance": 3.0, # Controls strength of the shaping
+    "foraging_predator_distance": 4.0, # Controls strength of the shaping
 
     # Chase shaping
     "move_towards_predator": -1.0,
