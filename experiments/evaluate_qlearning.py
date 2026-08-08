@@ -22,7 +22,7 @@ from evaluation import (
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-EVALUATION_EPISODES = 240
+EVALUATION_EPISODES = 1000
 BASE_SEED = 1_000
 
 
