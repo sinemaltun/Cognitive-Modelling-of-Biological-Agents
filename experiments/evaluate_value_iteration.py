@@ -90,7 +90,7 @@ def main():
     env = ForagingGame(
         threat_probability=args.threat_probability,
         realtime=False,
-        steps_per_second=10,
+        steps_per_second=9,
         action_noise=args.action_noise,
     )
 

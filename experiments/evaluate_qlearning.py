@@ -47,7 +47,7 @@ def parse_arguments():
     parser.add_argument(
         "--threat-probability",
         type=float,
-        default=0.2,
+        default=0.5,
     )
 
     parser.add_argument(
@@ -82,7 +82,7 @@ def main():
     env = ForagingGame(
         threat_probability=args.threat_probability,
         realtime=False,
-        steps_per_second=10,
+        steps_per_second=9,
         action_noise=args.action_noise,
     )
 
