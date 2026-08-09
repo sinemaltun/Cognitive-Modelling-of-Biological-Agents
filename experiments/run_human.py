@@ -1,4 +1,5 @@
 import argparse
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -20,10 +21,8 @@ from visualization import PygameRenderer
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Run and log human participant trials.")
+    parser = argparse.ArgumentParser(description="Run and log human participant trials.")
 
     parser.add_argument(
         "--episodes",
@@ -38,9 +37,14 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--threat-probability",
+        "--threat-probabilities",
         type=float,
-        default=0.5,
+        nargs="+",
+        default=[0.2, 0.5, 0.8],
+        help=(
+            "Threat probabilities sampled uniformly "
+            "across evaluation episodes."
+        ),
     )
 
     parser.add_argument(
@@ -55,12 +59,24 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    run_id = f"human_{args.participant_id}_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = (
+        f"human_{args.participant_id}_"
+        + datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+    )
 
-    run_dir = (PROJECT_ROOT / "results" / run_id)
+    run_dir = (
+        PROJECT_ROOT
+        / "results"
+        / run_id
+    )
 
+    # Initial value only.
+    # A new threat probability is selected
+    # before every episode reset.
     env = ForagingGame(
-        threat_probability=args.threat_probability,
+        threat_probability=args.threat_probabilities[0],
         realtime=True,
         action_noise=args.action_noise,
     )
@@ -81,15 +97,24 @@ def main():
             "episodes": args.episodes,
 
             "environment": {
-                "threat_probability": env.threat_probability,
+                "threat_probabilities": args.threat_probabilities,
+
+                "threat_sampling": "uniform_discrete",
+
                 "action_noise": env.action_noise,
+
                 "trial_duration": env.trial_duration,
+
                 "chase_duration": env.chase_duration,
+
                 "realtime": True,
                 "rewards": env.rewards,
             },
         },
     )
+
+    # Select the threat condition for the first episode.
+    env.threat_probability = random.choice(args.threat_probabilities)
 
     env.reset()
 
@@ -103,6 +128,7 @@ def main():
         run_seed=None,
         episode_seed=None,
     )
+
     tracker.start(env)
 
     run_statistics = RunStatistics()
@@ -117,7 +143,12 @@ def main():
             continue
 
         if action is not None:
-            (_, reward, done, info,) = env.step(action)
+            (
+                _,
+                reward,
+                done,
+                info,
+            ) = env.step(action)
 
             logger.log_step(
                 tracker.record_step(
@@ -137,6 +168,8 @@ def main():
 
                 print(
                     f"Episode {episode} finished | "
+                    f"Threat probability: "
+                    f"{env.threat_probability:.1f} | "
                     f"Status: "
                     f"{episode_record.status} | "
                     f"Gross tokens: "
@@ -147,7 +180,13 @@ def main():
 
                 if episode >= args.episodes:
                     running = False
+
                 else:
+                    # IMPORTANT:
+                    # Choose the next threat condition
+                    # before calling reset().
+                    env.threat_probability = random.choice(args.threat_probabilities)
+
                     env.reset()
 
                     tracker = EpisodeTracker(
@@ -166,14 +205,18 @@ def main():
 
     renderer.close()
 
-    completed = episode
-
     save_run_summary(
         run_dir,
         {
             "run_id": run_id,
             "mode": "human",
             "model_type": "human",
+            "participant_id": args.participant_id,
+
+            "threat_probabilities": args.threat_probabilities,
+
+            "threat_sampling": "uniform_discrete",
+
             **run_statistics.to_summary_dict(),
         },
     )

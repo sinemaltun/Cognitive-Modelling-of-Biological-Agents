@@ -43,9 +43,14 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--threat-probability",
+        "--threat-probabilities",
         type=float,
-        default=0.5,
+        nargs="+",
+        default=[0.2, 0.5, 0.8],
+        help=(
+            "Threat probabilities sampled uniformly "
+            "across evaluation episodes."
+        ),
     )
 
     parser.add_argument(
@@ -76,7 +81,7 @@ def main():
     run_dir = (PROJECT_ROOT / "results" / run_id)
 
     env = ForagingGame(
-        threat_probability=args.threat_probability,
+        threat_probability=args.threat_probabilities[0],
         realtime=False,
         steps_per_second=9,
         action_noise=args.action_noise,
@@ -98,7 +103,8 @@ def main():
             "base_seed": args.base_seed,
 
             "environment": {
-                "threat_probability": env.threat_probability,
+                "threat_probabilities": args.threat_probabilities,
+                "threat_sampling": "uniform_discrete",
                 "action_noise": env.action_noise,
                 "steps_per_second": env.steps_per_second,
                 "trial_duration": env.trial_duration,
@@ -119,6 +125,8 @@ def main():
         np.random.seed(episode_seed)
 
         state = env.reset()
+
+        env.threat_probability = random.choice(args.threat_probabilities)
 
         tracker = EpisodeTracker(
             run_id=run_id,

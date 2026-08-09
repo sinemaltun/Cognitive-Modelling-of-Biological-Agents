@@ -19,6 +19,8 @@ class StateFeatures:
     predator_awake: bool
     phase: int
 
+    threat_level: int
+
     @property
     def token_distance(self) -> int:
         return abs(self.token_dx) + abs(self.token_dy)
@@ -31,6 +33,18 @@ class StateFeatures:
     def safe_distance(self) -> int:
         return abs(self.safe_dx) + abs(self.safe_dy)
 
+
+def discretize_threat_probability(probability: float,) -> int:
+    """
+        Turn float value threat probability into discrete threat level integer.
+    """
+    if probability < 0.35:
+        return 0
+
+    if probability < 0.65:
+        return 1
+
+    return 2
 
 def build_state_features(env: "ForagingGame",) -> StateFeatures:
     """
@@ -59,10 +73,12 @@ def build_state_features(env: "ForagingGame",) -> StateFeatures:
 
         predator_awake=env.predator.awake,
         phase=env.phase.value,
+
+        threat_level=(discretize_threat_probability(env.threat_probability)),
     )
 
 
-def build_td_state(env: "ForagingGame",) -> tuple[int, int, int, int, int, int, int, int]:
+def build_td_state(env: "ForagingGame",) -> tuple[int, int, int, int, int, int, int, int, int]:
     """
     Build the compact observation used by
     tabular Temporal-Difference methods
@@ -83,4 +99,6 @@ def build_td_state(env: "ForagingGame",) -> tuple[int, int, int, int, int, int, 
 
         int(features.predator_awake),
         features.phase,
+
+        features.threat_level,
     )

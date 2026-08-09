@@ -31,11 +31,13 @@ RUN_ID = ("sarsa_training_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
 RUN_DIR = RESULTS_DIR / RUN_ID
 MODEL_PATH = MODEL_DIR / f"{RUN_ID}.pkl"
 
-EPISODES = 50_000
+EPISODES = 100_000
 SEED = 42
 
 PROGRESS_WINDOW = 100
 LOG_STEP_EVERY_N_EPISODES = 500
+
+THREAT_PROBABILITIES = [0.2, 0.5, 0.8]
 
 
 def mean_field(records: list, field_name: str,) -> float:
@@ -61,7 +63,7 @@ def main() -> None:
     np.random.seed(SEED)
 
     env = ForagingGame(
-        threat_probability=0.5,
+        threat_probability=THREAT_PROBABILITIES[0],
         realtime=False,
         steps_per_second=10,
         action_noise=0.0,
@@ -95,7 +97,8 @@ def main() -> None:
                 "width": env.grid.width,
                 "height": env.grid.height,
 
-                "threat_probability": env.threat_probability,
+                "threat_probabilities": THREAT_PROBABILITIES,
+                "threat_sampling": "uniform_discrete",
 
                 "trial_duration": env.trial_duration,
 
@@ -120,6 +123,8 @@ def main() -> None:
 
     for episode in range(EPISODES):
         epsilon_used = agent.epsilon
+
+        env.threat_probability = random.choice(THREAT_PROBABILITIES) # Allow random sampling of different threat levels
 
         state = env.reset()
         action = agent.choose_action(state)

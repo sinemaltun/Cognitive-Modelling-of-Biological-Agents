@@ -27,11 +27,12 @@ Rather than evaluating agents solely by cumulative reward, the framework also re
 - Two-phase gameplay (Foraging and Chase)
 - Human-controlled baseline
 - Random baseline
+- Threat-aware TD state representation
 - SARSA
 - Q-Learning
 - Value Iteration
 - Phase-aware Value Iteration
-- Configurable predator probability
+- Configurable and multi-condition threat probabilities
 - Optional action noise
 - Real-time and accelerated simulation
 - Behavioural logging
@@ -193,6 +194,27 @@ Typical scripts include
 
 # Learning Approaches
 
+## Threat-Aware TD Training
+
+SARSA and Q-Learning can be trained across multiple threat conditions rather
+than at a single fixed threat probability.
+
+During mixed-threat training, each episode samples a threat probability from:
+
+```text
+0.2  0.5  0.8
+```
+
+corresponding to low, medium, and high threat.
+
+The current threat level is included in the TD state representation. This
+allows a single learned Q-table to represent different behaviour depending
+on the known threat context rather than learning only an average policy
+across all conditions.
+
+The resulting model can subsequently be evaluated under individual threat
+conditions or under a mixed-threat distribution.
+
 ## SARSA
 
 SARSA is an **on-policy** temporal-difference algorithm.
@@ -334,7 +356,8 @@ The module-based form works on **Windows, Linux and macOS** and ensures that all
 
 # Human Experiments
 
-Run a human-controlled experiment while recording the same behavioural metrics used for the reinforcement learning agents.
+Run a human-controlled experiment while recording the same behavioural
+metrics used for the reinforcement learning agents.
 
 ```bash
 python -m experiments.run_human
@@ -345,9 +368,24 @@ Optional arguments include:
 ```text
 --participant-id
 --episodes
---threat-probability
+--threat-probabilities
 --action-noise
 ```
+
+Multiple threat conditions can be supplied:
+
+```bash
+python -m experiments.run_human --participant-id P01 --threat-probabilities 0.2 0.5 0.8
+```
+
+For these settings, each episode uses one of three threat conditions:
+
+- `0.2` — low threat
+- `0.5` — medium threat
+- `0.8` — high threat
+
+The current threat condition is displayed to the participant during the
+experiment.
 
 ---
 
@@ -496,11 +534,64 @@ python -m experiments.run_trained_value_iteration
 
 # Evaluation
 
-Evaluation loads a trained model, disables further learning and exploration, executes a fixed number of evaluation episodes, and records behavioural statistics.
+Evaluation loads a trained model, disables further learning and exploration,
+executes a fixed number of evaluation episodes, and records behavioural
+statistics.
 
-Replace `<timestamp>` with the timestamp of the model you wish to evaluate (for example, `20260721_173106`).
+Replace `<timestamp>` with the timestamp of the model you wish to evaluate
+(for example, `20260721_173106`).
 
-Each evaluation script supports additional command-line arguments. Use `--help` to display all available options.
+Each evaluation script supports additional command-line arguments. Use
+`--help` to display all available options.
+
+## Threat Conditions
+
+Evaluation can be performed across one or more threat probabilities using:
+
+```text
+--threat-probabilities
+```
+
+For example:
+
+```text
+--threat-probabilities 0.2 0.5 0.8
+```
+
+specifies three possible threat conditions:
+
+- `0.2` — low threat
+- `0.5` — medium threat
+- `0.8` — high threat
+
+The threat probability for an episode is selected from the supplied values
+before the environment is reset.
+
+Providing only one value therefore produces a fixed-threat evaluation:
+
+```text
+--threat-probabilities 0.5
+```
+
+while providing several values produces a mixed-threat evaluation:
+
+```text
+--threat-probabilities 0.2 0.5 0.8
+```
+
+Unless explicitly changed, the evaluation scripts use their configured
+default threat probabilities.
+
+Other useful options include:
+
+```text
+--episodes
+--action-noise
+--base-seed
+```
+
+Use the respective script's `--help` option for the complete and current
+list of arguments.
 
 ## SARSA
 
@@ -510,16 +601,28 @@ Display the available options:
 python -m experiments.evaluate_sarsa --help
 ```
 
-Evaluate a trained SARSA model:
+Evaluate using the default threat conditions:
 
 ```bash
 python -m experiments.evaluate_sarsa models/sarsa_training_<timestamp>.pkl
 ```
 
-Example:
+Evaluate across low, medium, and high threat:
 
 ```bash
-python -m experiments.evaluate_sarsa models/sarsa_training_20260721_173106.pkl
+python -m experiments.evaluate_sarsa models/sarsa_training_<timestamp>.pkl --threat-probabilities 0.2 0.5 0.8
+```
+
+Evaluate only under medium threat:
+
+```bash
+python -m experiments.evaluate_sarsa models/sarsa_training_<timestamp>.pkl --threat-probabilities 0.5
+```
+
+Example using an actual timestamp:
+
+```bash
+python -m experiments.evaluate_sarsa models/sarsa_training_20260721_173106.pkl --threat-probabilities 0.2 0.5 0.8
 ```
 
 ---
@@ -532,16 +635,22 @@ Display the available options:
 python -m experiments.evaluate_qlearning --help
 ```
 
-Evaluate a trained Q-Learning model:
+Evaluate using the default threat conditions:
 
 ```bash
 python -m experiments.evaluate_qlearning models/qlearning_training_<timestamp>.pkl
 ```
 
-Example:
+Evaluate across low, medium, and high threat:
 
 ```bash
-python -m experiments.evaluate_qlearning models/qlearning_training_20260721_173106.pkl
+python -m experiments.evaluate_qlearning models/qlearning_training_<timestamp>.pkl --threat-probabilities 0.2 0.5 0.8
+```
+
+Evaluate only under medium threat:
+
+```bash
+python -m experiments.evaluate_qlearning models/qlearning_training_<timestamp>.pkl --threat-probabilities 0.5
 ```
 
 ---
@@ -554,27 +663,31 @@ Display the available options:
 python -m experiments.evaluate_value_iteration --help
 ```
 
-Evaluate a trained Value Iteration agent by providing both the foraging and chase models from the same training run:
+Evaluate a Value Iteration agent by providing both the foraging and chase
+models from the same training run:
 
 ```bash
 python -m experiments.evaluate_value_iteration models/value_iteration_training_<timestamp>_forage.pkl models/value_iteration_training_<timestamp>_chase.pkl
 ```
 
-Example:
+If the Value Iteration evaluation script also supports the
+`--threat-probabilities` argument, the evaluation conditions can be supplied
+in the same way:
 
 ```bash
-python -m experiments.evaluate_value_iteration models/value_iteration_training_20260721_173106_forage.pkl models/value_iteration_training_20260721_173106_chase.pkl
+python -m experiments.evaluate_value_iteration models/value_iteration_training_<timestamp>_forage.pkl models/value_iteration_training_<timestamp>_chase.pkl --threat-probabilities 0.2 0.5 0.8
 ```
 
-The commands above use forward slashes because they work on Windows, Linux and macOS. On Windows, backslashes may also be used if preferred.
+The commands above use forward slashes because they work on Windows,
+Linux and macOS. On Windows, backslashes may also be used if preferred.
 
-Each evaluation creates a new timestamped directory inside
+Each evaluation creates a new timestamped directory inside:
 
 ```text
 results/
 ```
 
-containing
+containing:
 
 ```text
 run_config.json

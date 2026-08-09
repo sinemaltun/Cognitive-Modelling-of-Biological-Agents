@@ -127,13 +127,31 @@ class PygameRenderer:
 
         pygame.draw.rect(self.screen, color, frame_rect, FRAME_WIDTH,)
 
+    def _threat_level_text(self) -> str:
+        probability = (
+            self.env.threat_probability
+        )
+
+        if probability <= 0.2:
+            return "LOW"
+
+        if probability <= 0.5:
+            return "MEDIUM"
+
+        return "HIGH"
+
     def _draw_info_panel(self):
         panel_y = self.grid_height_px
 
         pygame.draw.rect(
             self.screen,
             WHITE,
-            pygame.Rect(0, panel_y, self.screen_width, INFO_PANEL_HEIGHT, ),
+            pygame.Rect(
+                0,
+                panel_y,
+                self.screen_width,
+                INFO_PANEL_HEIGHT,
+            ),
         )
 
         pygame.draw.line(
@@ -145,21 +163,58 @@ class PygameRenderer:
         )
 
         phase_text = self.env.phase.name
+
         status_text = self.env.status.name
-        tokens_text = f"Tokens: {self.env.player.collected_tokens}"
+
+        threat_text = (
+            self._threat_level_text()
+        )
+
+        tokens_text = (
+            f"Tokens: "
+            f"{self.env.player.collected_tokens}"
+        )
 
         if self.env.phase == Phase.CHASE:
-            time_text = f"Chase left: "f"{self.env.remaining_chase_time():.1f}s"
+            time_text = (
+                f"Chase left: "
+                f"{self.env.remaining_chase_time():.1f}s"
+            )
         else:
-            time_text = f"Trial left: "f"{self.env.remaining_trial_time():.1f}s"
+            time_text = (
+                f"Trial left: "
+                f"{self.env.remaining_trial_time():.1f}s"
+            )
 
-        left_text = self.font.render(tokens_text,True, BLACK,)
+        left_text = self.font.render(
+            tokens_text,
+            True,
+            BLACK,
+        )
 
-        middle_text = self.small_font.render(f"Phase: {phase_text} | Status: {status_text}",True, BLACK,)
+        middle_text = self.small_font.render(
+            (
+                f"Threat: {threat_text} | "
+                f"Phase: {phase_text} | "
+                f"Status: {status_text}"
+            ),
+            True,
+            BLACK,
+        )
 
-        right_text = self.font.render(time_text,True,BLACK,)
+        right_text = self.font.render(
+            time_text,
+            True,
+            BLACK,
+        )
 
-        self.screen.blit(left_text,(12, panel_y + 13),)
+        self.screen.blit(
+            left_text,
+            (
+                12,
+                panel_y + 13,
+            ),
+        )
 
         self.screen.blit(
             middle_text,
