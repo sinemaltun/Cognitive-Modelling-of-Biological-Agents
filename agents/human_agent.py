@@ -5,62 +5,64 @@ from environment import Action
 
 
 class HumanAgent(BaseAgent):
-    def __init__(self, movement_interval_ms: int = 100):
-        if movement_interval_ms <= 0:
-            raise ValueError(
-                "movement_interval_ms must be greater than zero."
-            )
+    """
+    Human-controlled agent.
 
-        self.movement_interval_ms = movement_interval_ms
-        self.next_movement_time = 0
+    This class is responsible only for reading keyboard input.
+
+    It does NOT control movement timing. The experiment loop in
+    run_human.py determines when environment steps occur.
+    """
+
+    def __init__(self):
         self.quit_requested = False
+        self.current_action = None
 
-    @staticmethod
-    def _get_pressed_action():
-        keys = pygame.key.get_pressed()
+    def update_input(self) -> None:
+        """
+        Process Pygame events and determine which movement key
+        is currently being held.
 
-        if keys[pygame.K_UP]:
-            return Action.UP
-
-        if keys[pygame.K_RIGHT]:
-            return Action.RIGHT
-
-        if keys[pygame.K_DOWN]:
-            return Action.DOWN
-
-        if keys[pygame.K_LEFT]:
-            return Action.LEFT
-
-        if keys[pygame.K_SPACE]:
-            return Action.STAY
-
-        return None
-
-    def choose_action(self, state=None):
+        This method should be called once per rendered frame.
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.quit_requested = True
-                return None
+                return
 
             if (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_ESCAPE
             ):
                 self.quit_requested = True
-                return None
+                return
 
-        action = self._get_pressed_action()
+        keys = pygame.key.get_pressed()
 
-        if action is None:
-            return None
+        if keys[pygame.K_UP]:
+            self.current_action = Action.UP
 
-        current_time = pygame.time.get_ticks()
+        elif keys[pygame.K_RIGHT]:
+            self.current_action = Action.RIGHT
 
-        if current_time < self.next_movement_time:
-            return None
+        elif keys[pygame.K_DOWN]:
+            self.current_action = Action.DOWN
 
-        self.next_movement_time = (
-            current_time + self.movement_interval_ms
-        )
+        elif keys[pygame.K_LEFT]:
+            self.current_action = Action.LEFT
 
-        return action
+        elif keys[pygame.K_SPACE]:
+            self.current_action = Action.STAY
+
+        else:
+            self.current_action = None
+
+    def choose_action(self, state=None):
+        """
+        Return the currently held movement action.
+
+        None means that no movement key is currently pressed.
+        run_human.py converts this to Action.STAY when the next
+        environment step occurs.
+        """
+        return self.current_action
