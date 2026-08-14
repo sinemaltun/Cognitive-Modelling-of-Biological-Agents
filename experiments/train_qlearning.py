@@ -182,7 +182,7 @@ def main() -> None:
 
         logger.log_episode(episode_record)
 
-        whole_run_statistics = RunStatistics()
+        whole_run_statistics.update(episode_record)
 
         recent_records.append(episode_record)
 
