@@ -1,3 +1,4 @@
+import argparse
 import random
 from datetime import datetime
 from pathlib import Path
@@ -31,13 +32,25 @@ RUN_ID = ("sarsa_training_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
 RUN_DIR = RESULTS_DIR / RUN_ID
 MODEL_PATH = MODEL_DIR / f"{RUN_ID}.pkl"
 
-EPISODES = 100_000
+DEFAULT_EPISODES = 100_000
 SEED = 42
 
 PROGRESS_WINDOW = 100
 LOG_STEP_EVERY_N_EPISODES = 500
 
 THREAT_PROBABILITIES = [0.2, 0.5, 0.8]
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Train a SARSA agent.")
+
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=DEFAULT_EPISODES,
+        help="Number of training episodes.",
+    )
+
+    return parser.parse_args()
 
 
 def mean_field(records: list, field_name: str,) -> float:
@@ -59,6 +72,11 @@ def calculate_threat_survival_rate(records: list,) -> tuple[int, float | None]:
 
 
 def main() -> None:
+    args = parse_arguments()
+
+    if args.episodes < 1:
+        raise ValueError("--episodes must be at least 1.")
+
     random.seed(SEED)
     np.random.seed(SEED)
 
@@ -85,7 +103,7 @@ def main() -> None:
             "mode": "training",
             "model_type": "sarsa",
             "run_seed": SEED,
-            "episodes": EPISODES,
+            "episodes": args.episodes,
             "model_path": str(MODEL_PATH),
 
             "logging": {
@@ -121,7 +139,7 @@ def main() -> None:
     print(f"Starting run: {RUN_ID}")
     print(f"Results directory: {RUN_DIR}")
 
-    for episode in range(EPISODES):
+    for episode in range(args.episodes):
         epsilon_used = agent.epsilon
 
         env.threat_probability = random.choice(THREAT_PROBABILITIES) # Allow random sampling of different threat levels
@@ -204,7 +222,7 @@ def main() -> None:
         agent.decay_epsilon()
         epsilon_next = agent.epsilon
 
-        should_log_progress = ((episode + 1) % PROGRESS_WINDOW == 0 or episode == EPISODES - 1)
+        should_log_progress = ((episode + 1) % PROGRESS_WINDOW == 0 or episode == args.episodes - 1)
 
         if (should_log_progress and recent_records):
             (threat_trial_count, threat_survival_rate,) = calculate_threat_survival_rate(recent_records)
@@ -249,7 +267,7 @@ def main() -> None:
 
             print(
                 f"Episode "
-                f"{episode + 1}/{EPISODES} | "
+                f"{episode + 1}/{args.episodes} | "
                 f"Average reward "
                 f"{progress.mean_reward:.2f} | "
                 f"Overall survival "
@@ -275,7 +293,7 @@ def main() -> None:
             "mode": "training",
             "model_type": "sarsa",
             "run_seed": SEED,
-            "episodes_completed": EPISODES,
+            "episodes_completed": args.episodes,
             "model_path": str(MODEL_PATH),
 
             "final_agent": agent.metadata(),
